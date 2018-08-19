@@ -220,9 +220,9 @@ struct CheckConfig {
 
 fn elf_has_pie(elf: &Elf) -> HasPIE {
     if elf.header.e_type == ET_DYN && elf.program_headers.iter().any(|hdr| hdr.p_type == PT_PHDR) {
-        return HasPIE(true)
+        return HasPIE(true);
     }
-    
+
     HasPIE(false)
 }
 
@@ -237,7 +237,7 @@ fn elf_has_relro(elf: &Elf) -> HasRelRO {
 fn elf_has_bindnow(elf: &Elf) -> HasBindNow {
     if let Some(ref dynamic) = elf.dynamic {
         if dynamic.dyns.iter().any(|dyn| dyn.d_tag == DT_BIND_NOW) {
-            return HasBindNow(true)
+            return HasBindNow(true);
         }
     }
 
@@ -331,7 +331,7 @@ fn main() {
         Err(e) => {
             println!("err = {:#?}", e);
             1
-        },
+        }
     };
     exit(code)
 }
