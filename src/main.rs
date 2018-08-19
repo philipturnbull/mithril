@@ -283,7 +283,7 @@ fn run_hardening_check(filename: &str, config: &CheckConfig) -> Result<i32, Erro
 
     let elf = match Object::parse(&buffer) {
         Ok(Object::Elf(elf)) => elf,
-        Ok(_) => return Err(Error::new(ErrorKind::Other, "only ELF files are supported")),
+        Ok(_) => return Err(Error::new(ErrorKind::Other, "not an ELF file")),
         Err(err) => return Err(Error::new(ErrorKind::Other, err.to_string())),
     };
     let elf = &elf;
@@ -329,7 +329,7 @@ fn main() {
     let code = match run_hardening_check(filename, config) {
         Ok(code) => code,
         Err(e) => {
-            println!("err = {:#?}", e);
+            eprintln!("{}: {}", filename, e.to_string());
             1
         }
     };
