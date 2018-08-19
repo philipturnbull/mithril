@@ -1,0 +1,33 @@
+#!/bin/bash -eux
+CC=$1
+OUT=$2
+
+cd /usr/local/share/mithril
+
+PIE="-pie"
+NO_PIE="-no-pie"
+
+${CC} ${PIE} nop.c -o "$OUT"/elf-pie
+${CC} ${NO_PIE} nop.c -o "$OUT"/elf-no-pie
+
+${CC} "-O1" "-U_FORTIFY_SOURCE" "-D_FORTIFY_SOURCE=0" nop.c -o "$OUT"/elf-no-fortify
+
+${CC} "-O1" "-U_FORTIFY_SOURCE" "-D_FORTIFY_SOURCE=0" strcpy.c -c -o strcpy.o
+${CC} "-O1" "-U_FORTIFY_SOURCE" "-D_FORTIFY_SOURCE=0" copy.c strcpy.o -o "$OUT"/elf-missing-fortify
+
+${CC} "-O1" "-U_FORTIFY_SOURCE" "-D_FORTIFY_SOURCE=0" strcpy.c -c -o strcpy.o
+${CC} "-O1" "-U_FORTIFY_SOURCE" "-D_FORTIFY_SOURCE=1" copy.c strcpy.o -o "$OUT"/elf-partial-fortify
+
+${CC} "-O1" "-U_FORTIFY_SOURCE" "-D_FORTIFY_SOURCE=1" strcpy.c -c -o strcpy.o
+${CC} "-O1" "-U_FORTIFY_SOURCE" "-D_FORTIFY_SOURCE=1" copy.c strcpy.o -o "$OUT"/elf-full-fortify
+
+${CC} -fno-stack-protector copy.c -o "$OUT"/elf-no-stack-protector
+${CC} -fstack-protector copy.c -o "$OUT"/elf-stack-protector
+
+pushd "$OUT"
+for elf in elf-*; do
+  basename="${elf#"elf-"}"
+  hardening-check -c -p -s -f -r -b "$elf" > "hc-$basename" || true
+  objdump -Dr "$elf" > "objdump-$basename"
+  readelf -Wa "$elf" > "readelf-$basename"
+done
