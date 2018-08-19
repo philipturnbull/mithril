@@ -1,0 +1,10 @@
+[package]
+name = "mithril"
+version = "0.1.0"
+authors = ["Phil Turnbull <philip.turnbull@gmail.com>"]
+
+[dependencies]
+ansi_term = "0.11.0"
+clap = "2.32.0"
+goblin = "0.0.15"
+lazy_static = "1.1.0"
