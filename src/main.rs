@@ -340,8 +340,8 @@ fn main() {
     };
 
     let code = match run_hardening_check(filename, config) {
-        Ok(true) => 0,
-        Ok(false) => 1,
+        Ok(true) => 1,
+        Ok(false) => 0,
         Err(e) => {
             eprintln!("{}: {}", filename, e.to_string());
             1

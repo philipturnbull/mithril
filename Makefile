@@ -7,14 +7,14 @@ default: mithril ;
 travis: mithril
 	mkdir -p build
 	script/build-test-binaries $(shell pwd)/build /usr/bin/gcc-4.8
-	script/compare-output
+	script/test
 
 .PHONY: test
 test: mithril
 	docker build -f test/Dockerfile -t mithril/test .
 	mkdir -p build
 	docker run -v$(shell pwd)/build:/out mithril/test
-	script/compare-output
+	script/test
 
 .PHONY: clean
 clean:
