@@ -6,7 +6,7 @@ default: mithril ;
 .PHONY: test
 test: mithril
 	mkdir -p build
-	script/build-test-binaries build gcc
+	script/build-test-binaries $(shell pwd)/build gcc
 	script/compare-output
 
 .PHONY: docker-test
