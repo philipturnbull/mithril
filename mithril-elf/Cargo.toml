@@ -1,26 +1,12 @@
 [package]
-name = "mithril"
+name = "mithril-elf"
 version = "0.1.0"
 authors = ["Phil Turnbull <philip.turnbull@gmail.com>"]
 homepage = "https://github.com/philipturnbull/mithril"
 repository = "https://github.com/philipturnbull/mithril"
 readme = "README.md"
-categories = ["command-line-utilities"]
 license = "MIT"
 
-[[bin]]
-bench = false
-path = "src/main.rs"
-name = "mithril"
-
-[workspace]
-members = [
-  "mithril-elf",
-]
-
 [dependencies]
-mithril-elf = { version = "0.1.0", path = "mithril-elf" }
-ansi_term = "0.11.0"
-clap = "2.32.0"
 goblin = "0.0.17"
 lazy_static = "1.1.0"

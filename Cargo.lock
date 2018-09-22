@@ -79,6 +79,15 @@ dependencies = [
  "clap 2.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "goblin 0.0.17 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mithril-elf 0.1.0",
+]
+
+[[package]]
+name = "mithril-elf"
+version = "0.1.0"
+dependencies = [
+ "goblin 0.0.17 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lazy_static 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

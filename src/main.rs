@@ -2,137 +2,30 @@ extern crate ansi_term;
 #[macro_use]
 extern crate clap;
 extern crate goblin;
-#[macro_use]
-extern crate lazy_static;
+extern crate mithril_elf;
 
 use ansi_term::Color::{Green, Red, Yellow};
-use goblin::elf::dyn::DT_BIND_NOW;
-use goblin::elf::header::ET_DYN;
-use goblin::elf::Elf;
-use goblin::elf32::program_header::{PT_GNU_RELRO, PT_PHDR};
 use goblin::Object;
-use std::collections::HashSet;
 use std::fs::File;
 use std::io::{Error, ErrorKind, Read};
-use std::iter::FromIterator;
 use std::path::Path;
 use std::process::exit;
-
-macro_rules! chk {
-    ($($x:expr),+,) => {
-        (
-            &[
-                $(
-                    stringify!($x),
-                )*
-            ],
-            &[
-                $(
-                    concat!("__", stringify!($x), "_chk"),
-                )*
-            ]
-        )
-    }
-}
-
-const LIBC_FUNCTIONS: (&[&str], &[&str]) = chk!(
-    asprintf,
-    confstr,
-    dprintf,
-    fgets,
-    fgets_unlocked,
-    fgetws,
-    fgetws_unlocked,
-    fprintf,
-    fread,
-    fread_unlocked,
-    fwprintf,
-    getcwd,
-    getdomainname,
-    getgroups,
-    gethostname,
-    getlogin_r,
-    gets,
-    getwd,
-    longjmp,
-    mbsnrtowcs,
-    mbsrtowcs,
-    mbstowcs,
-    memcpy,
-    memmove,
-    mempcpy,
-    memset,
-    obstack_printf,
-    obstack_vprintf,
-    pread64,
-    pread,
-    printf,
-    ptsname_r,
-    read,
-    readlink,
-    readlinkat,
-    realpath,
-    recv,
-    recvfrom,
-    snprintf,
-    sprintf,
-    stpcpy,
-    stpncpy,
-    strcat,
-    strcpy,
-    strncat,
-    strncpy,
-    swprintf,
-    syslog,
-    ttyname_r,
-    vasprintf,
-    vdprintf,
-    vfprintf,
-    vfwprintf,
-    vprintf,
-    vsnprintf,
-    vsprintf,
-    vswprintf,
-    vsyslog,
-    vwprintf,
-    wcpcpy,
-    wcpncpy,
-    wcrtomb,
-    wcscat,
-    wcscpy,
-    wcsncat,
-    wcsncpy,
-    wcsnrtombs,
-    wcsrtombs,
-    wcstombs,
-    wctomb,
-    wmemcpy,
-    wmemmove,
-    wmempcpy,
-    wmemset,
-    wprintf,
-);
-
-lazy_static! {
-    static ref UNPROTECTED_FUNCTIONS: HashSet<&'static &'static str> =
-        HashSet::from_iter(LIBC_FUNCTIONS.0.iter());
-    static ref PROTECTED_FUNCTIONS: HashSet<&'static &'static str> =
-        HashSet::from_iter(LIBC_FUNCTIONS.1.iter());
-}
-
-#[derive(PartialEq)]
-enum Fortified {
-    All,
-    Some,
-    Unknown,
-    OnlyUnprotected,
-}
+use mithril_elf::Fortified;
 
 #[derive(PartialEq)]
 enum CheckStatus {
     Good,
     Bad,
     Unknown,
+}
+
+struct CheckConfig {
+    color: bool,
+    skip_pie: bool,
+    skip_stackprotector: bool,
+    skip_fortify: bool,
+    skip_relro: bool,
+    skip_bindnow: bool,
 }
 
 macro_rules! status {
@@ -145,31 +38,36 @@ macro_rules! status {
 }
 
 macro_rules! checked {
-    ($type:ident $name:ident: $title:expr, $($pattern:pat => $result:expr),+,) => {
-        struct $name($type);
-        impl $name {
+    ($name:ident $flag:ident: $title:expr, $($pattern:pat => $result:expr),+,) => {
+        struct $name<'a> {
+            value: mithril_elf::$name,
+            config: &'a CheckConfig,
+        }
+
+        impl<'a> $name<'a> {
+            #![allow(match_bool)]
             fn status(self: &Self) -> (CheckStatus, &str, &str) {
-                match self.0 {
+                match self.value.0 {
                     $(
                         $pattern => $result,
                     )*
                 }
             }
 
-            fn failed(self: &Self, ignore: bool) -> bool {
-                return !ignore && self.status().0 == CheckStatus::Bad
+            fn failed(self: &Self) -> bool {
+                return !self.config.$flag && self.status().0 == CheckStatus::Bad
             }
 
-            fn print(self: &Self, color:bool, ignore: bool) {
+            fn print(self: &Self) {
                 let (status, text, comment) = self.status();
 
-                let ignored = if ignore && status == CheckStatus::Bad {
+                let ignored = if self.config.$flag && status == CheckStatus::Bad {
                     " (ignored)"
                 } else {
                     ""
                 };
 
-                let text = if color {
+                let text = if self.config.color {
                     (match status {
                         CheckStatus::Good => Green,
                         CheckStatus::Unknown => Yellow,
@@ -186,19 +84,19 @@ macro_rules! checked {
 }
 
 checked! {
-    bool HasPIE: "Position Independent Executable",
+    HasPIE skip_pie: "Position Independent Executable",
     true => status!(Good, "yes"),
     false => status!(Bad, "no, normal executable!"),
 }
 
 checked! {
-    bool HasStackProtector: "Stack protected",
+    HasStackProtector skip_stackprotector: "Stack protected",
     true => status!(Good, "yes"),
     false => status!(Bad, "no, not found!"),
 }
 
 checked! {
-    Fortified HasFortify: "Fortify Source functions",
+    HasFortify skip_fortify: "Fortify Source functions",
     Fortified::All => status!(Good, "yes"),
     Fortified::Some => status!(Good, "yes", " (some protected functions found)"),
     Fortified::Unknown => status!(Unknown, "unknown, no protectable libc functions used"),
@@ -206,81 +104,15 @@ checked! {
 }
 
 checked! {
-    bool HasRelRO: "Read-only relocations",
+    HasRelRO skip_relro: "Read-only relocations",
     true => status!(Good, "yes"),
     false => status!(Bad, "no, not found!"),
 }
 
 checked! {
-    bool HasBindNow: "Immediate binding",
+    HasBindNow skip_bindnow: "Immediate binding",
     true => status!(Good, "yes"),
     false => status!(Bad, "no, not found!"),
-}
-
-struct CheckConfig {
-    color: bool,
-    skip_pie: bool,
-    skip_stackprotector: bool,
-    skip_fortify: bool,
-    skip_relro: bool,
-    skip_bindnow: bool,
-}
-
-fn elf_has_pie(elf: &Elf) -> HasPIE {
-    if elf.header.e_type == ET_DYN && elf.program_headers.iter().any(|hdr| hdr.p_type == PT_PHDR) {
-        return HasPIE(true);
-    }
-
-    HasPIE(false)
-}
-
-fn elf_has_relro(elf: &Elf) -> HasRelRO {
-    HasRelRO(
-        elf.program_headers
-            .iter()
-            .any(|hdr| hdr.p_type == PT_GNU_RELRO),
-    )
-}
-
-fn elf_has_bindnow(elf: &Elf) -> HasBindNow {
-    if let Some(ref dynamic) = elf.dynamic {
-        if dynamic.dyns.iter().any(|dyn| dyn.d_tag == DT_BIND_NOW) {
-            return HasBindNow(true);
-        }
-    }
-
-    HasBindNow(false)
-}
-
-fn elf_has_protection(elf: &Elf) -> (HasStackProtector, HasFortify) {
-    let mut has_stackprotector = HasStackProtector(false);
-    let mut num_protected = 0;
-    let mut num_unprotected = 0;
-    for sym in elf.dynsyms.iter() {
-        if let Some(Ok(name)) = elf.dynstrtab.get(sym.st_name) {
-            if name == "__stack_chk_fail" {
-                has_stackprotector = HasStackProtector(true);
-            }
-
-            if PROTECTED_FUNCTIONS.contains(&name) {
-                num_protected += 1;
-            } else if UNPROTECTED_FUNCTIONS.contains(&name) {
-                num_unprotected += 1;
-            }
-        }
-    }
-
-    let has_fortify = HasFortify(if num_protected > 0 && num_unprotected == 0 {
-        Fortified::All
-    } else if num_protected > 0 && num_unprotected > 0 {
-        Fortified::Some
-    } else if num_protected == 0 && num_unprotected == 0 {
-        Fortified::Unknown
-    } else {
-        Fortified::OnlyUnprotected
-    });
-
-    (has_stackprotector, has_fortify)
 }
 
 fn run_hardening_check(filename: &str, config: &CheckConfig) -> Result<bool, Error> {
@@ -296,23 +128,25 @@ fn run_hardening_check(filename: &str, config: &CheckConfig) -> Result<bool, Err
     };
     let elf = &elf;
 
+    let has_pie = HasPIE { value: mithril_elf::has_pie(elf), config };
+    let (has_stackprotector, has_fortify) = mithril_elf::has_protection(elf);
+    let has_stackprotector = HasStackProtector { value: has_stackprotector, config };
+    let has_fortify = HasFortify { value: has_fortify, config };
+    let has_relro = HasRelRO { value: mithril_elf::has_relro(elf), config };
+    let has_bindnow = HasBindNow { value: mithril_elf::has_bindnow(elf), config };
+
     println!("{}:", filename);
-    let has_pie = elf_has_pie(elf);
-    let has_relro = elf_has_relro(elf);
-    let has_bindnow = elf_has_bindnow(elf);
-    let (has_stackprotector, has_fortify) = elf_has_protection(elf);
+    has_pie.print();
+    has_stackprotector.print();
+    has_fortify.print();
+    has_relro.print();
+    has_bindnow.print();
 
-    has_pie.print(config.color, config.skip_pie);
-    has_stackprotector.print(config.color, config.skip_stackprotector);
-    has_fortify.print(config.color, config.skip_fortify);
-    has_relro.print(config.color, config.skip_relro);
-    has_bindnow.print(config.color, config.skip_bindnow);
-
-    Ok(has_pie.failed(config.skip_pie) ||
-       has_stackprotector.failed(config.skip_stackprotector) ||
-       has_fortify.failed(config.skip_fortify) ||
-       has_relro.failed(config.skip_relro) ||
-       has_bindnow.failed(config.skip_bindnow)
+    Ok(has_pie.failed() ||
+       has_stackprotector.failed() ||
+       has_fortify.failed() ||
+       has_relro.failed() ||
+       has_bindnow.failed()
     )
 }
 
