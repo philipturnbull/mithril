@@ -1,11 +1,13 @@
 FROM ubuntu:xenial
 
-RUN apt-get update
-RUN apt-get install -y \
+RUN apt-get update && apt-get install -y \
 	gcc \
+	clang-3.8 \
 	hardening-includes
 
-COPY build-binaries /usr/local/bin
-COPY *.c /usr/local/share/mithril/
+COPY script/build-test-binaries /usr/local/share/mithril/script/
+COPY test/*.c /usr/local/share/mithril/test/
 
-CMD build-binaries /usr/bin/gcc /out
+WORKDIR /usr/local/share/mithril
+
+CMD script/build-test-binaries /out /usr/bin/gcc /usr/bin/clang-3.8

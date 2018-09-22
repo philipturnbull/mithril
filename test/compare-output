@@ -1,8 +1,0 @@
-#!/bin/bash -eux
-
-pushd build
-for elf in elf-*; do
-  basename="${elf#"elf-"}"
-  diff "hc-${basename}" <(cargo run -q -- -c -p -s -f -r -b "$elf")
-done
-popd

@@ -148,12 +148,20 @@ macro_rules! checked {
     ($type:ident $name:ident: $title:expr, $($pattern:pat => $result:expr),+,) => {
         struct $name($type);
         impl $name {
-            fn print(self: &Self, color:bool, ignore: bool) {
-                let (status, text, comment) = match self.0 {
+            fn status(self: &Self) -> (CheckStatus, &str, &str) {
+                match self.0 {
                     $(
                         $pattern => $result,
                     )*
-                };
+                }
+            }
+
+            fn failed(self: &Self, ignore: bool) -> bool {
+                return !ignore && self.status().0 == CheckStatus::Bad
+            }
+
+            fn print(self: &Self, color:bool, ignore: bool) {
+                let (status, text, comment) = self.status();
 
                 let ignored = if ignore && status == CheckStatus::Bad {
                     " (ignored)"
@@ -275,7 +283,7 @@ fn elf_has_protection(elf: &Elf) -> (HasStackProtector, HasFortify) {
     (has_stackprotector, has_fortify)
 }
 
-fn run_hardening_check(filename: &str, config: &CheckConfig) -> Result<i32, Error> {
+fn run_hardening_check(filename: &str, config: &CheckConfig) -> Result<bool, Error> {
     let path = Path::new(filename);
     let mut fd = File::open(path)?;
     let mut buffer = Vec::new();
@@ -300,7 +308,12 @@ fn run_hardening_check(filename: &str, config: &CheckConfig) -> Result<i32, Erro
     has_relro.print(config.color, config.skip_relro);
     has_bindnow.print(config.color, config.skip_bindnow);
 
-    Ok(0)
+    Ok(has_pie.failed(config.skip_pie) ||
+       has_stackprotector.failed(config.skip_stackprotector) ||
+       has_fortify.failed(config.skip_fortify) ||
+       has_relro.failed(config.skip_relro) ||
+       has_bindnow.failed(config.skip_bindnow)
+    )
 }
 
 fn main() {
@@ -327,7 +340,8 @@ fn main() {
     };
 
     let code = match run_hardening_check(filename, config) {
-        Ok(code) => code,
+        Ok(true) => 0,
+        Ok(false) => 1,
         Err(e) => {
             eprintln!("{}: {}", filename, e.to_string());
             1

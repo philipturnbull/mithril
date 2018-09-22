@@ -1,0 +1,46 @@
+#!/bin/bash -eux
+OUT="$1"
+shift
+echo "$@"
+
+pushd test
+for CC in "$@"; do
+  cc=$(basename ${CC})
+
+  PIE="-pie"
+  NO_PIE="-no-pie"
+
+  FORTIFY="-O1 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1"
+  NO_FORTIFY="-O1 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0" 
+
+  ${CC} ${PIE} nop.c -o "$OUT/elf-${cc}-pie"
+
+  if [[ ! "$cc" =~ ^clang.*$ ]]; then
+    # clang doesn't support NO_PIE \o/
+    ${CC} ${NO_PIE} nop.c -o "$OUT/elf-${cc}-no-pie"
+  fi
+
+  ${CC} $NO_FORTIFY nop.c -o "$OUT/elf-${cc}-no-fortify"
+
+  ${CC} $NO_FORTIFY strcpy.c -c -o strcpy.o
+  ${CC} $NO_FORTIFY copy.c strcpy.o -o "$OUT/elf-${cc}-missing-fortify"
+
+  ${CC} $NO_FORTIFY strcpy.c -c -o strcpy.o
+  ${CC} $FORTIFY copy.c strcpy.o -o "$OUT/elf-${cc}-partial-fortify"
+
+  ${CC} $FORTIFY strcpy.c -c -o strcpy.o
+  ${CC} $FORTIFY copy.c strcpy.o -o "$OUT/elf-${cc}-full-fortify"
+
+  ${CC} -fno-stack-protector copy.c -o "$OUT/elf-${cc}-no-stack-protector"
+  ${CC} -fstack-protector copy.c -o "$OUT/elf-${cc}-stack-protector"
+done
+popd 1>/dev/null
+
+pushd "$OUT"
+for elf in elf-*; do
+  basename="${elf#"elf-"}"
+  hardening-check "$elf" > "hc-no-flags-$basename" || true
+  hardening-check -c -p -s -f -r -b "$elf" > "hc-all-flags-$basename" || true
+  #objdump -Dr "$elf" > "objdump-$basename"
+  #readelf -Wa "$elf" > "readelf-$basename"
+done 1>/dev/null
