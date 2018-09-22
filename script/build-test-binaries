@@ -1,8 +1,6 @@
 #!/bin/bash -eux
 OUT="$1"
 
-ls -l /usr/bin/gcc-*
-ls -l /usr/bin/clang-*
 compilers=$(echo /usr/bin/gcc-[0-9]* /usr/bin/clang-[0-9]*)
 
 pushd test
