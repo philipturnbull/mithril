@@ -3,14 +3,14 @@ mithril:
 	cargo build
 default: mithril ;
 	
-.PHONY: test
-test: mithril
+.PHONY: travis
+travis: mithril
 	mkdir -p build
-	script/build-test-binaries $(shell pwd)/build gcc
+	script/build-test-binaries $(shell pwd)/build /usr/bin/gcc-4.8
 	script/compare-output
 
-.PHONY: docker-test
-docker-test: mithril
+.PHONY: test
+test: mithril
 	docker build -f test/Dockerfile -t mithril/test .
 	mkdir -p build
 	docker run -v$(shell pwd)/build:/out mithril/test

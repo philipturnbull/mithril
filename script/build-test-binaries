@@ -1,24 +1,20 @@
 #!/bin/bash -eux
 OUT="$1"
-shift
-echo "$@"
+
+ls -l /usr/bin/gcc-*
+ls -l /usr/bin/clang-*
+compilers=$(echo /usr/bin/gcc-[0-9]* /usr/bin/clang-[0-9]*)
 
 pushd test
-for CC in "$@"; do
+for CC in $compilers; do
   cc=$(basename ${CC})
 
-  PIE="-pie"
-  NO_PIE="-no-pie"
+  # Not all compiler versions support --pie/--no-pie, so silently fail here
+  ${CC} --pie nop.c -o "$OUT/elf-${cc}-pie" || :
+  ${CC} --no-pie nop.c -o "$OUT/elf-${cc}-no-pie" || :
 
   FORTIFY="-O1 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1"
   NO_FORTIFY="-O1 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0" 
-
-  ${CC} ${PIE} nop.c -o "$OUT/elf-${cc}-pie"
-
-  if [[ ! "$cc" =~ ^clang.*$ ]]; then
-    # clang doesn't support NO_PIE \o/
-    ${CC} ${NO_PIE} nop.c -o "$OUT/elf-${cc}-no-pie"
-  fi
 
   ${CC} $NO_FORTIFY nop.c -o "$OUT/elf-${cc}-no-fortify"
 
