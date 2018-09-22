@@ -5,6 +5,7 @@ sudo: false
 addons:
   apt:
     packages:
+    - hardening-includes
     - gcc-4.4
     - gcc-4.6
     - gcc-4.7
