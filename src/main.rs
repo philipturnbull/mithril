@@ -19,6 +19,28 @@ enum CheckStatus {
     Unknown,
 }
 
+struct CheckResult {
+    status: CheckStatus,
+    text: &'static str,
+    comment: &'static str,
+}
+
+fn good(text: &'static str) -> CheckResult {
+    CheckResult { status: CheckStatus::Good, text, comment: "" }
+}
+
+fn good_comment(text: &'static str, comment: &'static str) -> CheckResult {
+    CheckResult { status: CheckStatus::Good, text, comment }
+}
+
+fn bad(text: &'static str) -> CheckResult {
+    CheckResult { status: CheckStatus::Bad, text, comment: "" }
+}
+
+fn unknown(text: &'static str) -> CheckResult {
+    CheckResult { status: CheckStatus::Unknown, text, comment: "" }
+}
+
 struct CheckConfig {
     color: bool,
     skip_pie: bool,
@@ -28,91 +50,86 @@ struct CheckConfig {
     skip_bindnow: bool,
 }
 
-macro_rules! status {
-    ($x:ident, $text:expr, $comment:expr) => {
-        (CheckStatus::$x, $text, $comment)
-    };
-    ($x:ident, $text:expr) => {
-        (CheckStatus::$x, $text, "")
-    };
+trait Check {
+    fn meta(self: &Self, config: &CheckConfig) -> (&'static str, bool);
+    fn result(self: &Self) -> CheckResult;
 }
 
 macro_rules! checked {
-    ($name:ident $flag:ident: $title:expr, $($pattern:pat => $result:expr),+,) => {
-        struct $name<'a> {
-            value: mithril_elf::$name,
-            config: &'a CheckConfig,
-        }
+    ($type:ident $flag:ident $title:expr, $($pattern:pat => $result:expr),+,) => {
+        impl Check for mithril_elf::$type {
+            fn meta(self: &Self, config: &CheckConfig) -> (&'static str, bool) {
+                ($title, config.$flag)
+            }
 
-        impl<'a> $name<'a> {
-            #![allow(match_bool)]
-            fn status(self: &Self) -> (CheckStatus, &str, &str) {
-                match self.value.0 {
+            fn result(self: &Self) -> CheckResult {
+                #![allow(match_bool)]
+                match self.0 {
                     $(
                         $pattern => $result,
                     )*
                 }
-            }
-
-            fn failed(self: &Self) -> bool {
-                return !self.config.$flag && self.status().0 == CheckStatus::Bad
-            }
-
-            fn print(self: &Self) {
-                let (status, text, comment) = self.status();
-
-                let ignored = if self.config.$flag && status == CheckStatus::Bad {
-                    " (ignored)"
-                } else {
-                    ""
-                };
-
-                let text = if self.config.color {
-                    (match status {
-                        CheckStatus::Good => Green,
-                        CheckStatus::Unknown => Yellow,
-                        CheckStatus::Bad => Red,
-                    }).paint(text).to_string()
-                } else {
-                    text.to_string()
-                };
-
-                println!(" {}: {}{}{}", $title, text, comment, ignored);
             }
         }
     }
 }
 
 checked! {
-    HasPIE skip_pie: "Position Independent Executable",
-    true => status!(Good, "yes"),
-    false => status!(Bad, "no, normal executable!"),
+    HasPIE skip_pie "Position Independent Executable",
+    true => good("yes"),
+    false => bad("no, normal executable!"),
 }
 
 checked! {
-    HasStackProtector skip_stackprotector: "Stack protected",
-    true => status!(Good, "yes"),
-    false => status!(Bad, "no, not found!"),
+    HasStackProtector skip_stackprotector "Stack protected",
+    true => good("yes"),
+    false => bad("no, not found!"),
 }
 
 checked! {
-    HasFortify skip_fortify: "Fortify Source functions",
-    Fortified::All => status!(Good, "yes"),
-    Fortified::Some => status!(Good, "yes", " (some protected functions found)"),
-    Fortified::Unknown => status!(Unknown, "unknown, no protectable libc functions used"),
-    Fortified::OnlyUnprotected => status!(Bad, "no, only unprotected functions found!"),
+    HasFortify skip_fortify "Fortify Source functions",
+    Fortified::All => good("yes"),
+    Fortified::Some => good_comment("yes", " (some protected functions found)"),
+    Fortified::Unknown => unknown("unknown, no protectable libc functions used"),
+    Fortified::OnlyUnprotected => bad("no, only unprotected functions found!"),
 }
 
 checked! {
-    HasRelRO skip_relro: "Read-only relocations",
-    true => status!(Good, "yes"),
-    false => status!(Bad, "no, not found!"),
+    HasRelRO skip_relro "Read-only relocations",
+    true => good("yes"),
+    false => bad("no, not found!"),
 }
 
 checked! {
-    HasBindNow skip_bindnow: "Immediate binding",
-    true => status!(Good, "yes"),
-    false => status!(Bad, "no, not found!"),
+    HasBindNow skip_bindnow "Immediate binding",
+    true => good("yes"),
+    false => bad("no, not found!"),
+}
+
+
+fn print_check<C: Check>(config: &CheckConfig, check: &C) -> bool {
+    let (title, should_ignore) = check.meta(config);
+    let result = check.result();
+
+    let ignored = if should_ignore && result.status == CheckStatus::Bad {
+        " (ignored)"
+    } else {
+        ""
+    };
+
+    let text = if config.color {
+        (match result.status {
+            CheckStatus::Good => Green,
+            CheckStatus::Unknown => Yellow,
+            CheckStatus::Bad => Red,
+        }).paint(result.text).to_string()
+    } else {
+        result.text.to_string()
+    };
+
+    println!(" {}: {}{}{}", title, text, result.comment, ignored);
+
+    !should_ignore && result.status == CheckStatus::Bad
 }
 
 fn run_hardening_check(filename: &str, config: &CheckConfig) -> Result<bool, Error> {
@@ -128,26 +145,20 @@ fn run_hardening_check(filename: &str, config: &CheckConfig) -> Result<bool, Err
     };
     let elf = &elf;
 
-    let has_pie = HasPIE { value: mithril_elf::has_pie(elf), config };
+    let has_pie = mithril_elf::has_pie(elf);
     let (has_stackprotector, has_fortify) = mithril_elf::has_protection(elf);
-    let has_stackprotector = HasStackProtector { value: has_stackprotector, config };
-    let has_fortify = HasFortify { value: has_fortify, config };
-    let has_relro = HasRelRO { value: mithril_elf::has_relro(elf), config };
-    let has_bindnow = HasBindNow { value: mithril_elf::has_bindnow(elf), config };
+    let has_relro = mithril_elf::has_relro(elf);
+    let has_bindnow = mithril_elf::has_bindnow(elf);
 
     println!("{}:", filename);
-    has_pie.print();
-    has_stackprotector.print();
-    has_fortify.print();
-    has_relro.print();
-    has_bindnow.print();
+    let mut failed = false;
+    failed |= print_check(config, &has_pie);
+    failed |= print_check(config, &has_stackprotector);
+    failed |= print_check(config, &has_fortify);
+    failed |= print_check(config, &has_relro);
+    failed |= print_check(config, &has_bindnow);
 
-    Ok(has_pie.failed() ||
-       has_stackprotector.failed() ||
-       has_fortify.failed() ||
-       has_relro.failed() ||
-       has_bindnow.failed()
-    )
+    Ok(!failed)
 }
 
 fn main() {
@@ -174,8 +185,8 @@ fn main() {
     };
 
     let code = match run_hardening_check(filename, config) {
-        Ok(true) => 1,
-        Ok(false) => 0,
+        Ok(true) => 0,
+        Ok(false) => 1,
         Err(e) => {
             eprintln!("{}: {}", filename, e.to_string());
             1
