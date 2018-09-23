@@ -153,8 +153,9 @@ pub fn has_bindnow(elf: &Elf) -> HasBindNow {
 
 pub fn has_protection(elf: &Elf) -> (HasStackProtector, HasFortify) {
     let mut has_stackprotector = HasStackProtector(false);
-    let mut num_protected = 0;
-    let mut num_unprotected = 0;
+    let mut has_protected = false;
+    let mut has_unprotected = false;
+
     for sym in elf.dynsyms.iter() {
         if let Some(Ok(name)) = elf.dynstrtab.get(sym.st_name) {
             if name == "__stack_chk_fail" {
@@ -162,18 +163,18 @@ pub fn has_protection(elf: &Elf) -> (HasStackProtector, HasFortify) {
             }
 
             if PROTECTED_FUNCTIONS.contains(&name) {
-                num_protected += 1;
+                has_protected = true;
             } else if UNPROTECTED_FUNCTIONS.contains(&name) {
-                num_unprotected += 1;
+                has_unprotected = true;
             }
         }
     }
 
-    let has_fortify = HasFortify(if num_protected > 0 && num_unprotected == 0 {
+    let has_fortify = HasFortify(if has_protected && !has_unprotected {
         Fortified::All
-    } else if num_protected > 0 && num_unprotected > 0 {
+    } else if has_protected && has_unprotected {
         Fortified::Some
-    } else if num_protected == 0 && num_unprotected == 0 {
+    } else if !has_protected && !has_unprotected {
         Fortified::Unknown
     } else {
         Fortified::OnlyUnprotected
