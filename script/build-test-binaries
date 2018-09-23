@@ -30,9 +30,19 @@ for CC in $compilers; do
     ${CC} $static_flag -fstack-protector copy.c -o "$OUT/elf-${cc}-stack-protector${static_flag}"
   done
 
+  ${CC} -fPIC --shared $NO_FORTIFY nop.c -o "$OUT/elf-${cc}-no-foritfy-shared.so"
 
+  ${CC} -fPIC $NO_FORTIFY strcpy.c -c -o strcpy.o
+  ${CC} -fPIC -shared $NO_FORTIFY copy.c strcpy.o -o "$OUT/elf-${cc}-missing-fortify.so"
 
+  ${CC} -fPIC $NO_FORTIFY strcpy.c -c -o strcpy.o
+  ${CC} -fPIC -shared $FORTIFY copy.c strcpy.o -o "$OUT/elf-${cc}-partial-fortify.so"
 
+  ${CC} -fPIC $FORTIFY strcpy.c -c -o strcpy.o
+  ${CC} -fPIC -shared $FORTIFY copy.c strcpy.o -o "$OUT/elf-${cc}-full-fortify.so"
+
+  ${CC} -fPIC -shared -fno-stack-protector copy.c -o "$OUT/elf-${cc}-no-stack-protector.so"
+  ${CC} -fPIC -shared -fstack-protector copy.c -o "$OUT/elf-${cc}-stack-protector.so"
 done
 popd 1>/dev/null
 

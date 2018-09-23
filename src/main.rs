@@ -10,7 +10,7 @@ use std::fs::File;
 use std::io::{Error, ErrorKind, Read};
 use std::path::Path;
 use std::process::exit;
-use mithril_elf::Fortified;
+use mithril_elf::{Fortified, PIE};
 
 #[derive(PartialEq)]
 enum CheckStatus {
@@ -76,8 +76,9 @@ macro_rules! checked {
 
 checked! {
     HasPIE ignore_pie "Position Independent Executable",
-    true => good("yes"),
-    false => bad("no, normal executable!"),
+    PIE::Yes => good("yes"),
+    PIE::No => bad("no, normal executable!"),
+    PIE::SharedLibrary => good("no, regular shared library (ignored)"),
 }
 
 checked! {

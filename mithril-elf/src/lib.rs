@@ -119,18 +119,29 @@ pub enum Fortified {
     OnlyUnprotected,
 }
 
-pub struct HasPIE(pub bool);
+#[derive(PartialEq)]
+pub enum PIE {
+    Yes,
+    No,
+    SharedLibrary,
+}
+
+pub struct HasPIE(pub PIE);
 pub struct HasStackProtector(pub bool);
 pub struct HasFortify(pub Fortified);
 pub struct HasRelRO(pub bool);
 pub struct HasBindNow(pub bool);
 
 pub fn has_pie(elf: &Elf) -> HasPIE {
-    if elf.header.e_type == ET_DYN && elf.program_headers.iter().any(|hdr| hdr.p_type == PT_PHDR) {
-        return HasPIE(true);
+    if elf.header.e_type == ET_DYN {
+        return if elf.program_headers.iter().any(|hdr| hdr.p_type == PT_PHDR) {
+            HasPIE(PIE::Yes)
+        } else {
+            HasPIE(PIE::SharedLibrary)
+        }
     }
 
-    HasPIE(false)
+    HasPIE(PIE::No)
 }
 
 pub fn has_relro(elf: &Elf) -> HasRelRO {
