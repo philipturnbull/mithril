@@ -158,13 +158,15 @@ pub fn has_protection(elf: &Elf) -> (HasStackProtector, HasFortify) {
 
     for sym in elf.dynsyms.iter() {
         if let Some(Ok(name)) = elf.dynstrtab.get(sym.st_name) {
-            if name == "__stack_chk_fail" {
-                has_stackprotector = HasStackProtector(true);
+            if !has_stackprotector.0 {
+                if name == "__stack_chk_fail" {
+                    has_stackprotector = HasStackProtector(true);
+                }
             }
 
-            if PROTECTED_FUNCTIONS.contains(&name) {
+            if !has_protected && PROTECTED_FUNCTIONS.contains(&name) {
                 has_protected = true;
-            } else if UNPROTECTED_FUNCTIONS.contains(&name) {
+            } else if !has_unprotected && UNPROTECTED_FUNCTIONS.contains(&name) {
                 has_unprotected = true;
             }
         }
