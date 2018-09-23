@@ -168,6 +168,10 @@ pub fn has_protection(elf: &Elf) -> (HasStackProtector, HasFortify) {
                 has_unprotected = true;
             }
         }
+
+        if has_stackprotector.0 && has_protected && has_unprotected {
+            break
+        }
     }
 
     let has_fortify = HasFortify(if has_protected && !has_unprotected {
