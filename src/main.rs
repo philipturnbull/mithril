@@ -75,7 +75,7 @@ macro_rules! checked {
 }
 
 checked! {
-    HasPIE ignore_pie "Position Independent Executable",
+    IsPIE ignore_pie "Position Independent Executable",
     PIE::Yes => good("yes"),
     PIE::No => bad("no, normal executable!"),
     PIE::SharedLibrary => good("no, regular shared library (ignored)"),
@@ -146,14 +146,14 @@ fn run_hardening_check(filename: &str, config: &CheckConfig) -> Result<bool, Err
     };
     let elf = &elf;
 
-    let has_pie = mithril_elf::has_pie(elf);
+    let is_pie = mithril_elf::is_pie(elf);
     let (has_stack_protector, has_fortify) = mithril_elf::has_protection(elf);
     let has_relro = mithril_elf::has_relro(elf);
     let has_bindnow = mithril_elf::has_bindnow(elf);
 
     println!("{}:", filename);
     let mut failed = false;
-    failed |= print_check(config, &has_pie);
+    failed |= print_check(config, &is_pie);
     failed |= print_check(config, &has_stack_protector);
     failed |= print_check(config, &has_fortify);
     failed |= print_check(config, &has_relro);

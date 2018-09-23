@@ -126,22 +126,22 @@ pub enum PIE {
     SharedLibrary,
 }
 
-pub struct HasPIE(pub PIE);
+pub struct IsPIE(pub PIE);
 pub struct HasStackProtector(pub bool);
 pub struct HasFortify(pub Fortified);
 pub struct HasRelRO(pub bool);
 pub struct HasBindNow(pub bool);
 
-pub fn has_pie(elf: &Elf) -> HasPIE {
+pub fn is_pie(elf: &Elf) -> IsPIE {
     if elf.header.e_type == ET_DYN {
         return if elf.program_headers.iter().any(|hdr| hdr.p_type == PT_PHDR) {
-            HasPIE(PIE::Yes)
+            IsPIE(PIE::Yes)
         } else {
-            HasPIE(PIE::SharedLibrary)
+            IsPIE(PIE::SharedLibrary)
         }
     }
 
-    HasPIE(PIE::No)
+    IsPIE(PIE::No)
 }
 
 pub fn has_relro(elf: &Elf) -> HasRelRO {
