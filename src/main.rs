@@ -44,7 +44,7 @@ fn unknown(text: &'static str) -> CheckResult {
 struct CheckConfig {
     color: bool,
     skip_pie: bool,
-    skip_stackprotector: bool,
+    skip_stack_protector: bool,
     skip_fortify: bool,
     skip_relro: bool,
     skip_bindnow: bool,
@@ -81,7 +81,7 @@ checked! {
 }
 
 checked! {
-    HasStackProtector skip_stackprotector "Stack protected",
+    HasStackProtector skip_stack_protector "Stack protected",
     true => good("yes"),
     false => bad("no, not found!"),
 }
@@ -146,14 +146,14 @@ fn run_hardening_check(filename: &str, config: &CheckConfig) -> Result<bool, Err
     let elf = &elf;
 
     let has_pie = mithril_elf::has_pie(elf);
-    let (has_stackprotector, has_fortify) = mithril_elf::has_protection(elf);
+    let (has_stack_protector, has_fortify) = mithril_elf::has_protection(elf);
     let has_relro = mithril_elf::has_relro(elf);
     let has_bindnow = mithril_elf::has_bindnow(elf);
 
     println!("{}:", filename);
     let mut failed = false;
     failed |= print_check(config, &has_pie);
-    failed |= print_check(config, &has_stackprotector);
+    failed |= print_check(config, &has_stack_protector);
     failed |= print_check(config, &has_fortify);
     failed |= print_check(config, &has_relro);
     failed |= print_check(config, &has_bindnow);
@@ -167,7 +167,7 @@ fn main() {
         (author: "Phil Turnbull <philip.turnbull@gmail.com>")
         (@arg color: -c --color)
         (@arg skip_pie: -p --nopie)
-        (@arg skip_stackprotector: -s --nostackprotector)
+        (@arg skip_stack_protector: -s --nostackprotector)
         (@arg skip_fortify: -f --nofortify)
         (@arg skip_relro: -r --norelro)
         (@arg skip_bindnow: -b --nobindnow)
@@ -178,7 +178,7 @@ fn main() {
     let config = &CheckConfig {
         color: matches.is_present("color"),
         skip_pie: matches.is_present("skip_pie"),
-        skip_stackprotector: matches.is_present("skip_stackprotector"),
+        skip_stack_protector: matches.is_present("skip_stack_protector"),
         skip_fortify: matches.is_present("skip_fortify"),
         skip_relro: matches.is_present("skip_relro"),
         skip_bindnow: matches.is_present("skip_bindnow"),

@@ -152,15 +152,15 @@ pub fn has_bindnow(elf: &Elf) -> HasBindNow {
 }
 
 pub fn has_protection(elf: &Elf) -> (HasStackProtector, HasFortify) {
-    let mut has_stackprotector = HasStackProtector(false);
+    let mut has_stack_protector = HasStackProtector(false);
     let mut has_protected = false;
     let mut has_unprotected = false;
 
     for sym in elf.dynsyms.iter() {
         if let Some(Ok(name)) = elf.dynstrtab.get(sym.st_name) {
-            if !has_stackprotector.0 {
+            if !has_stack_protector.0 {
                 if name == "__stack_chk_fail" {
-                    has_stackprotector = HasStackProtector(true);
+                    has_stack_protector = HasStackProtector(true);
                 }
             }
 
@@ -171,7 +171,7 @@ pub fn has_protection(elf: &Elf) -> (HasStackProtector, HasFortify) {
             }
         }
 
-        if has_stackprotector.0 && has_protected && has_unprotected {
+        if has_stack_protector.0 && has_protected && has_unprotected {
             break
         }
     }
@@ -190,5 +190,5 @@ pub fn has_protection(elf: &Elf) -> (HasStackProtector, HasFortify) {
         }
     });
 
-    (has_stackprotector, has_fortify)
+    (has_stack_protector, has_fortify)
 }
