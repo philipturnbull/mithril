@@ -7,26 +7,32 @@ pushd test
 for CC in $compilers; do
   cc=$(basename ${CC})
 
-  # Not all compiler versions support --pie/--no-pie, so silently fail here
-  ${CC} --pie nop.c -o "$OUT/elf-${cc}-pie" || :
-  ${CC} --no-pie nop.c -o "$OUT/elf-${cc}-no-pie" || :
-
   FORTIFY="-O1 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1"
   NO_FORTIFY="-O1 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0" 
 
-  ${CC} $NO_FORTIFY nop.c -o "$OUT/elf-${cc}-no-fortify"
+  for static_flag in "" "-static"; do
+    # Not all compiler versions support --pie/--no-pie, so silently fail here
+    ${CC} $static_flag --pie nop.c -o "$OUT/elf-${cc}-pie${static_flag}" || :
+    ${CC} $static_flag --no-pie nop.c -o "$OUT/elf-${cc}-no-pie${static_flag}" || :
 
-  ${CC} $NO_FORTIFY strcpy.c -c -o strcpy.o
-  ${CC} $NO_FORTIFY copy.c strcpy.o -o "$OUT/elf-${cc}-missing-fortify"
+    ${CC} $static_flag $NO_FORTIFY nop.c -o "$OUT/elf-${cc}-no-fortify${static_flag}"
 
-  ${CC} $NO_FORTIFY strcpy.c -c -o strcpy.o
-  ${CC} $FORTIFY copy.c strcpy.o -o "$OUT/elf-${cc}-partial-fortify"
+    ${CC} $static_flag $NO_FORTIFY strcpy.c -c -o strcpy.o
+    ${CC} $static_flag $NO_FORTIFY copy.c strcpy.o -o "$OUT/elf-${cc}-missing-fortify${static_flag}"
 
-  ${CC} $FORTIFY strcpy.c -c -o strcpy.o
-  ${CC} $FORTIFY copy.c strcpy.o -o "$OUT/elf-${cc}-full-fortify"
+    ${CC} $static_flag $NO_FORTIFY strcpy.c -c -o strcpy.o
+    ${CC} $static_flag $FORTIFY copy.c strcpy.o -o "$OUT/elf-${cc}-partial-fortify${static_flag}"
 
-  ${CC} -fno-stack-protector copy.c -o "$OUT/elf-${cc}-no-stack-protector"
-  ${CC} -fstack-protector copy.c -o "$OUT/elf-${cc}-stack-protector"
+    ${CC} $static_flag $FORTIFY strcpy.c -c -o strcpy.o
+    ${CC} $static_flag $FORTIFY copy.c strcpy.o -o "$OUT/elf-${cc}-full-fortify${static_flag}"
+
+    ${CC} $static_flag -fno-stack-protector copy.c -o "$OUT/elf-${cc}-no-stack-protector${static_flag}"
+    ${CC} $static_flag -fstack-protector copy.c -o "$OUT/elf-${cc}-stack-protector${static_flag}"
+  done
+
+
+
+
 done
 popd 1>/dev/null
 
