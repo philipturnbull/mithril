@@ -10,7 +10,6 @@ use std::fs::File;
 use std::io::{Error, ErrorKind, Read};
 use std::path::Path;
 use std::process::exit;
-use mithril_elf::{Fortified, PIE};
 
 #[derive(PartialEq)]
 enum CheckStatus {
@@ -56,17 +55,16 @@ trait Check {
 }
 
 macro_rules! checked {
-    ($type:ident $flag:ident $title:expr, $($pattern:pat => $result:expr),+,) => {
+    ($type:ident $flag:ident $title:expr, $($pattern:ident => $result:expr),+,) => {
         impl Check for mithril_elf::$type {
             fn meta(self: &Self, config: &CheckConfig) -> (&'static str, bool) {
                 ($title, config.$flag)
             }
 
             fn result(self: &Self) -> CheckResult {
-                #![allow(match_bool)]
-                match self.0 {
+                match self {
                     $(
-                        $pattern => $result,
+                        mithril_elf::$type::$pattern => $result,
                     )*
                 }
             }
@@ -76,35 +74,35 @@ macro_rules! checked {
 
 checked! {
     IsPIE ignore_pie "Position Independent Executable",
-    PIE::Yes => good("yes"),
-    PIE::No => bad("no, normal executable!"),
-    PIE::SharedLibrary => good("no, regular shared library (ignored)"),
+    Yes => good("yes"),
+    No => bad("no, normal executable!"),
+    SharedLibrary => good("no, regular shared library (ignored)"),
 }
 
 checked! {
     HasStackProtector ignore_stack_protector "Stack protected",
-    true => good("yes"),
-    false => bad("no, not found!"),
+    Yes => good("yes"),
+    No => bad("no, not found!"),
 }
 
 checked! {
     HasFortify ignore_fortify "Fortify Source functions",
-    Fortified::All => good("yes"),
-    Fortified::Some => good_comment("yes", " (some protected functions found)"),
-    Fortified::Unknown => unknown("unknown, no protectable libc functions used"),
-    Fortified::OnlyUnprotected => bad("no, only unprotected functions found!"),
+    All => good("yes"),
+    Some => good_comment("yes", " (some protected functions found)"),
+    Unknown => unknown("unknown, no protectable libc functions used"),
+    OnlyUnprotected => bad("no, only unprotected functions found!"),
 }
 
 checked! {
     HasRelRO ignore_relro "Read-only relocations",
-    true => good("yes"),
-    false => bad("no, not found!"),
+    Yes => good("yes"),
+    No => bad("no, not found!"),
 }
 
 checked! {
     HasBindNow ignore_bindnow "Immediate binding",
-    true => good("yes"),
-    false => bad("no, not found!"),
+    Yes => good("yes"),
+    No => bad("no, not found!"),
 }
 
 

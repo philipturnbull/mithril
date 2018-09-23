@@ -112,7 +112,20 @@ lazy_static! {
 }
 
 #[derive(PartialEq)]
-pub enum Fortified {
+pub enum IsPIE {
+    Yes,
+    No,
+    SharedLibrary,
+}
+
+#[derive(PartialEq)]
+pub enum HasStackProtector {
+    Yes,
+    No,
+}
+
+#[derive(PartialEq)]
+pub enum HasFortify {
     All,
     Some,
     Unknown,
@@ -120,58 +133,57 @@ pub enum Fortified {
 }
 
 #[derive(PartialEq)]
-pub enum PIE {
+pub enum HasRelRO {
     Yes,
     No,
-    SharedLibrary,
 }
 
-pub struct IsPIE(pub PIE);
-pub struct HasStackProtector(pub bool);
-pub struct HasFortify(pub Fortified);
-pub struct HasRelRO(pub bool);
-pub struct HasBindNow(pub bool);
+#[derive(PartialEq)]
+pub enum HasBindNow {
+    Yes,
+    No,
+}
 
 pub fn is_pie(elf: &Elf) -> IsPIE {
     if elf.header.e_type == ET_DYN {
         return if elf.program_headers.iter().any(|hdr| hdr.p_type == PT_PHDR) {
-            IsPIE(PIE::Yes)
+            IsPIE::Yes
         } else {
-            IsPIE(PIE::SharedLibrary)
+            IsPIE::SharedLibrary
         }
     }
 
-    IsPIE(PIE::No)
+    IsPIE::No
 }
 
 pub fn has_relro(elf: &Elf) -> HasRelRO {
-    HasRelRO(
-        elf.program_headers
-            .iter()
-            .any(|hdr| hdr.p_type == PT_GNU_RELRO),
-    )
+    if elf.program_headers.iter().any(|hdr| hdr.p_type == PT_GNU_RELRO) {
+        HasRelRO::Yes
+    } else {
+        HasRelRO::No
+    }
 }
 
 pub fn has_bindnow(elf: &Elf) -> HasBindNow {
     if let Some(ref dynamic) = elf.dynamic {
         if dynamic.dyns.iter().any(|dyn| dyn.d_tag == DT_BIND_NOW) {
-            return HasBindNow(true);
+            return HasBindNow::Yes
         }
     }
 
-    HasBindNow(false)
+    HasBindNow::No
 }
 
 pub fn has_protection(elf: &Elf) -> (HasStackProtector, HasFortify) {
-    let mut has_stack_protector = HasStackProtector(false);
+    let mut has_stack_protector = HasStackProtector::No;
     let mut has_protected = false;
     let mut has_unprotected = false;
 
     for sym in elf.dynsyms.iter() {
         if let Some(Ok(name)) = elf.dynstrtab.get(sym.st_name) {
-            if !has_stack_protector.0 {
+            if has_stack_protector == HasStackProtector::No {
                 if name == "__stack_chk_fail" {
-                    has_stack_protector = HasStackProtector(true);
+                    has_stack_protector = HasStackProtector::Yes;
                 }
             }
 
@@ -182,24 +194,24 @@ pub fn has_protection(elf: &Elf) -> (HasStackProtector, HasFortify) {
             }
         }
 
-        if has_stack_protector.0 && has_protected && has_unprotected {
+        if has_stack_protector == HasStackProtector::Yes && has_protected && has_unprotected {
             break
         }
     }
 
-    let has_fortify = HasFortify(if has_protected {
+    let has_fortify = if has_protected {
         if has_unprotected {
-            Fortified::Some
+            HasFortify::Some
         } else {
-            Fortified::All
+            HasFortify::All
         }
     } else {
         if has_unprotected {
-            Fortified::OnlyUnprotected
+            HasFortify::OnlyUnprotected
         } else {
-            Fortified::Unknown
+            HasFortify::Unknown
         }
-    });
+    };
 
     (has_stack_protector, has_fortify)
 }
