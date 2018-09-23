@@ -43,11 +43,11 @@ fn unknown(text: &'static str) -> CheckResult {
 
 struct CheckConfig {
     color: bool,
-    skip_pie: bool,
-    skip_stack_protector: bool,
-    skip_fortify: bool,
-    skip_relro: bool,
-    skip_bindnow: bool,
+    ignore_pie: bool,
+    ignore_stack_protector: bool,
+    ignore_fortify: bool,
+    ignore_relro: bool,
+    ignore_bindnow: bool,
 }
 
 trait Check {
@@ -75,19 +75,19 @@ macro_rules! checked {
 }
 
 checked! {
-    HasPIE skip_pie "Position Independent Executable",
+    HasPIE ignore_pie "Position Independent Executable",
     true => good("yes"),
     false => bad("no, normal executable!"),
 }
 
 checked! {
-    HasStackProtector skip_stack_protector "Stack protected",
+    HasStackProtector ignore_stack_protector "Stack protected",
     true => good("yes"),
     false => bad("no, not found!"),
 }
 
 checked! {
-    HasFortify skip_fortify "Fortify Source functions",
+    HasFortify ignore_fortify "Fortify Source functions",
     Fortified::All => good("yes"),
     Fortified::Some => good_comment("yes", " (some protected functions found)"),
     Fortified::Unknown => unknown("unknown, no protectable libc functions used"),
@@ -95,13 +95,13 @@ checked! {
 }
 
 checked! {
-    HasRelRO skip_relro "Read-only relocations",
+    HasRelRO ignore_relro "Read-only relocations",
     true => good("yes"),
     false => bad("no, not found!"),
 }
 
 checked! {
-    HasBindNow skip_bindnow "Immediate binding",
+    HasBindNow ignore_bindnow "Immediate binding",
     true => good("yes"),
     false => bad("no, not found!"),
 }
@@ -166,22 +166,22 @@ fn main() {
         (version: "0.1")
         (author: "Phil Turnbull <philip.turnbull@gmail.com>")
         (@arg color: -c --color)
-        (@arg skip_pie: -p --nopie)
-        (@arg skip_stack_protector: -s --nostackprotector)
-        (@arg skip_fortify: -f --nofortify)
-        (@arg skip_relro: -r --norelro)
-        (@arg skip_bindnow: -b --nobindnow)
+        (@arg ignore_pie: -p --nopie)
+        (@arg ignore_stack_protector: -s --nostackprotector)
+        (@arg ignore_fortify: -f --nofortify)
+        (@arg ignore_relro: -r --norelro)
+        (@arg ignore_bindnow: -b --nobindnow)
         (@arg FILE: +required)
     ).get_matches();
 
     let filename = matches.value_of("FILE").unwrap();
     let config = &CheckConfig {
         color: matches.is_present("color"),
-        skip_pie: matches.is_present("skip_pie"),
-        skip_stack_protector: matches.is_present("skip_stack_protector"),
-        skip_fortify: matches.is_present("skip_fortify"),
-        skip_relro: matches.is_present("skip_relro"),
-        skip_bindnow: matches.is_present("skip_bindnow"),
+        ignore_pie: matches.is_present("ignore_pie"),
+        ignore_stack_protector: matches.is_present("ignore_stack_protector"),
+        ignore_fortify: matches.is_present("ignore_fortify"),
+        ignore_relro: matches.is_present("ignore_relro"),
+        ignore_bindnow: matches.is_present("ignore_bindnow"),
     };
 
     let code = match run_hardening_check(filename, config) {
