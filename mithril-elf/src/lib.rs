@@ -174,14 +174,18 @@ pub fn has_protection(elf: &Elf) -> (HasStackProtector, HasFortify) {
         }
     }
 
-    let has_fortify = HasFortify(if has_protected && !has_unprotected {
-        Fortified::All
-    } else if has_protected && has_unprotected {
-        Fortified::Some
-    } else if !has_protected && !has_unprotected {
-        Fortified::Unknown
+    let has_fortify = HasFortify(if has_protected {
+        if has_unprotected {
+            Fortified::Some
+        } else {
+            Fortified::All
+        }
     } else {
-        Fortified::OnlyUnprotected
+        if has_unprotected {
+            Fortified::OnlyUnprotected
+        } else {
+            Fortified::Unknown
+        }
     });
 
     (has_stackprotector, has_fortify)
