@@ -144,9 +144,13 @@ pub enum HasBindNow {
     No,
 }
 
+fn has_program_header(elf: &Elf, header: u32) -> bool {
+    elf.program_headers.iter().any(|hdr| hdr.p_type == header)
+}
+
 pub fn is_pie(elf: &Elf) -> IsPIE {
     if elf.header.e_type == ET_DYN {
-        return if elf.program_headers.iter().any(|hdr| hdr.p_type == PT_PHDR) {
+        return if has_program_header(elf, PT_PHDR) {
             IsPIE::Yes
         } else {
             IsPIE::SharedLibrary
@@ -157,7 +161,7 @@ pub fn is_pie(elf: &Elf) -> IsPIE {
 }
 
 pub fn has_relro(elf: &Elf) -> HasRelRO {
-    if elf.program_headers.iter().any(|hdr| hdr.p_type == PT_GNU_RELRO) {
+    if has_program_header(elf, PT_GNU_RELRO) {
         HasRelRO::Yes
     } else {
         HasRelRO::No
