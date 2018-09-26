@@ -148,6 +148,14 @@ fn has_program_header(elf: &Elf, header: u32) -> bool {
     elf.program_headers.iter().any(|hdr| hdr.p_type == header)
 }
 
+fn has_dynamic_entry(elf: &Elf, tag: u64) -> bool {
+    if let Some(ref dynamic) = elf.dynamic {
+        return dynamic.dyns.iter().any(|dyn| dyn.d_tag == tag)
+    }
+
+    false
+}
+
 pub fn is_pie(elf: &Elf) -> IsPIE {
     if elf.header.e_type == ET_DYN {
         return if has_program_header(elf, PT_PHDR) {
@@ -169,13 +177,11 @@ pub fn has_relro(elf: &Elf) -> HasRelRO {
 }
 
 pub fn has_bindnow(elf: &Elf) -> HasBindNow {
-    if let Some(ref dynamic) = elf.dynamic {
-        if dynamic.dyns.iter().any(|dyn| dyn.d_tag == DT_BIND_NOW) {
-            return HasBindNow::Yes
-        }
+    if has_dynamic_entry(elf, DT_BIND_NOW) {
+        HasBindNow::Yes
+    } else {
+        HasBindNow::No
     }
-
-    HasBindNow::No
 }
 
 fn dyn_sym_names<'a>(elf: &'a Elf) -> impl std::iter::Iterator<Item=&'a str> {
