@@ -174,24 +174,26 @@ pub fn has_bindnow(elf: &Elf) -> HasBindNow {
     HasBindNow::No
 }
 
+fn dyn_sym_names<'a>(elf: &'a Elf) -> impl std::iter::Iterator<Item=&'a str> {
+    elf.dynsyms.iter().filter_map(move |sym| elf.dynstrtab.get(sym.st_name).and_then(|x| x.ok()))
+}
+
 pub fn has_protection(elf: &Elf) -> (HasStackProtector, HasFortify) {
     let mut has_stack_protector = HasStackProtector::No;
     let mut has_protected = false;
     let mut has_unprotected = false;
 
-    for sym in elf.dynsyms.iter() {
-        if let Some(Ok(name)) = elf.dynstrtab.get(sym.st_name) {
-            if has_stack_protector == HasStackProtector::No {
-                if name == "__stack_chk_fail" {
-                    has_stack_protector = HasStackProtector::Yes;
-                }
+    for name in dyn_sym_names(elf) {
+        if has_stack_protector == HasStackProtector::No {
+            if name == "__stack_chk_fail" {
+                has_stack_protector = HasStackProtector::Yes;
             }
+        }
 
-            if !has_protected && PROTECTED_FUNCTIONS.contains(&name) {
-                has_protected = true;
-            } else if !has_unprotected && UNPROTECTED_FUNCTIONS.contains(&name) {
-                has_unprotected = true;
-            }
+        if !has_protected && PROTECTED_FUNCTIONS.contains(&name) {
+            has_protected = true;
+        } else if !has_unprotected && UNPROTECTED_FUNCTIONS.contains(&name) {
+            has_unprotected = true;
         }
 
         if has_stack_protector == HasStackProtector::Yes && has_protected && has_unprotected {
