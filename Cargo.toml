@@ -10,8 +10,8 @@ license = "MIT"
 
 [[bin]]
 bench = false
-path = "src/main.rs"
-name = "mithril"
+path = "src/hardening_check.rs"
+name = "hardening-check"
 
 [workspace]
 members = [
