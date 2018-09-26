@@ -3,11 +3,11 @@
 pushd build
 for elf in elf-*; do
   basename="${elf#"elf-"}"
-  (cargo run -q -- "$elf" > "mithril-no-flags-${basename}"; echo $? > "mithril-no-flags-${basename}.exit") || true
+  (cargo run --bin hardening-check -q -- "$elf" > "mithril-no-flags-${basename}"; echo $? > "mithril-no-flags-${basename}.exit") || true
   diff "hc-no-flags-${basename}" "mithril-no-flags-${basename}"
   diff "hc-no-flags-${basename}.exit" "mithril-no-flags-${basename}.exit"
 
-  (cargo run -q -- -c -p -s -f -r -b "$elf" > "mithril-all-flags-${basename}"; echo $? > "mithril-all-flags-${basename}.exit") || true
+  (cargo run --bin hardening-check -q -- -c -p -s -f -r -b "$elf" > "mithril-all-flags-${basename}"; echo $? > "mithril-all-flags-${basename}.exit") || true
   diff "hc-all-flags-${basename}" "mithril-all-flags-${basename}"
   diff "hc-all-flags-${basename}.exit" "mithril-all-flags-${basename}.exit"
 done

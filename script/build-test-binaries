@@ -30,6 +30,8 @@ for CC in $compilers; do
     ${CC} $static_flag -fstack-protector copy.c -o "$OUT/elf-${cc}-stack-protector${static_flag}"
   done
 
+  ${CC} -Wl,-rpath,"/foo/bar" nop.c -o "$OUT/elf-${cc}-rpath"
+
   ${CC} -fPIC --shared $NO_FORTIFY nop.c -o "$OUT/elf-${cc}-no-fortify-shared.so"
 
   ${CC} -fPIC $NO_FORTIFY strcpy.c -c -o strcpy.o

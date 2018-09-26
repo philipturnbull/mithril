@@ -2,7 +2,7 @@ extern crate goblin;
 #[macro_use]
 extern crate lazy_static;
 
-use goblin::elf::dyn::DT_BIND_NOW;
+use goblin::elf::dyn::{DT_BIND_NOW, DT_RPATH};
 use goblin::elf::header::ET_DYN;
 use goblin::elf::Elf;
 use goblin::elf32::program_header::{PT_GNU_RELRO, PT_PHDR};
@@ -111,20 +111,20 @@ lazy_static! {
         HashSet::from_iter(LIBC_FUNCTIONS.1.iter());
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum IsPIE {
     Yes,
     No,
     SharedLibrary,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum HasStackProtector {
     Yes,
     No,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum HasFortify {
     All,
     Some,
@@ -132,14 +132,20 @@ pub enum HasFortify {
     OnlyUnprotected,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum HasRelRO {
     Yes,
     No,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum HasBindNow {
+    Yes,
+    No,
+}
+
+#[derive(PartialEq, Debug)]
+pub enum HasLibrarySearchPath {
     Yes,
     No,
 }
@@ -226,4 +232,12 @@ pub fn has_protection(elf: &Elf) -> (HasStackProtector, HasFortify) {
     };
 
     (has_stack_protector, has_fortify)
+}
+
+pub fn has_library_search_path(elf: &Elf) -> HasLibrarySearchPath {
+    if has_dynamic_entry(elf, DT_RPATH) {
+        HasLibrarySearchPath::Yes
+    } else {
+        HasLibrarySearchPath::No
+    }
 }

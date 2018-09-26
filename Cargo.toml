@@ -13,6 +13,11 @@ bench = false
 path = "src/hardening_check.rs"
 name = "hardening-check"
 
+[[bin]]
+bench = false
+path = "src/main.rs"
+name = "mithril"
+
 [workspace]
 members = [
   "mithril-elf",
