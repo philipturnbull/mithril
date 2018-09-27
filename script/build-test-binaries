@@ -1,7 +1,7 @@
 #!/bin/bash -eux
 OUT="$1"
 
-compilers=$(echo /usr/bin/gcc-[0-9]* /usr/bin/clang-[0-9]*)
+compilers=$(echo /usr/bin/gcc-4*8) #[0-9]* /usr/bin/clang-[0-9]*)
 
 pushd test
 for CC in $compilers; do
@@ -30,7 +30,8 @@ for CC in $compilers; do
     ${CC} $static_flag -fstack-protector copy.c -o "$OUT/elf-${cc}-stack-protector${static_flag}"
   done
 
-  ${CC} -Wl,-rpath,"/foo/bar" nop.c -o "$OUT/elf-${cc}-rpath"
+  ${CC} -Wl,-rpath,"/foo" nop.c -o "$OUT/elf-${cc}-rpath"
+  ${CC} -Wl,-rpath,"/bar",--enable-new-dtags nop.c -o "$OUT/elf-${cc}-runpath"
 
   ${CC} -fPIC --shared $NO_FORTIFY nop.c -o "$OUT/elf-${cc}-no-fortify-shared.so"
 

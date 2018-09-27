@@ -2,7 +2,7 @@ extern crate goblin;
 #[macro_use]
 extern crate lazy_static;
 
-use goblin::elf::dyn::{DT_BIND_NOW, DT_RPATH};
+use goblin::elf::dyn::{DT_BIND_NOW, DT_RPATH, DT_RUNPATH};
 use goblin::elf::header::ET_DYN;
 use goblin::elf::Elf;
 use goblin::elf32::program_header::{PT_GNU_RELRO, PT_PHDR};
@@ -145,9 +145,11 @@ pub enum HasBindNow {
 }
 
 #[derive(PartialEq, Debug)]
-pub enum HasLibrarySearchPath {
-    Yes,
-    No,
+pub enum LibrarySearchPath {
+    RPATHUnknown,
+    RPATH(String),
+    RUNPATHUnknown,
+    RUNPATH(String),
 }
 
 fn has_program_header(elf: &Elf, header: u32) -> bool {
@@ -217,27 +219,34 @@ pub fn has_protection(elf: &Elf) -> (HasStackProtector, HasFortify) {
         }
     }
 
-    let has_fortify = if has_protected {
-        if has_unprotected {
-            HasFortify::Some
-        } else {
-            HasFortify::All
-        }
-    } else {
-        if has_unprotected {
-            HasFortify::OnlyUnprotected
-        } else {
-            HasFortify::Unknown
-        }
+    let has_fortify = match (has_protected, has_unprotected) {
+        (true, true) => HasFortify::Some,
+        (true, false) => HasFortify::All,
+        (false, true) => HasFortify::OnlyUnprotected,
+        (false, false) => HasFortify::Unknown,
     };
 
     (has_stack_protector, has_fortify)
 }
 
-pub fn has_library_search_path(elf: &Elf) -> HasLibrarySearchPath {
-    if has_dynamic_entry(elf, DT_RPATH) {
-        HasLibrarySearchPath::Yes
-    } else {
-        HasLibrarySearchPath::No
+pub fn has_library_search_path(elf: &Elf) -> Vec<LibrarySearchPath> {
+    let mut paths = Vec::new();
+
+    if let Some(ref dynamic) = elf.dynamic {
+        for dyn in &dynamic.dyns {
+            if dyn.d_tag == DT_RPATH {
+                match elf.dynstrtab.get(dyn.d_val as usize) {
+                    Some(Ok(path)) => paths.push(LibrarySearchPath::RPATH(path.into())),
+                    _ => paths.push(LibrarySearchPath::RPATHUnknown),
+                }
+            } else if dyn.d_tag == DT_RUNPATH {
+                match elf.dynstrtab.get(dyn.d_val as usize) {
+                    Some(Ok(path)) => paths.push(LibrarySearchPath::RUNPATH(path.into())),
+                    _ => paths.push(LibrarySearchPath::RUNPATHUnknown),
+                }
+            }
+        }
     }
+
+    paths
 }

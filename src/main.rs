@@ -17,7 +17,7 @@ struct Results {
     has_fortify: mithril_elf::HasFortify,
     has_relro: mithril_elf::HasRelRO,
     has_bindnow: mithril_elf::HasBindNow,
-    has_library_search_path: mithril_elf::HasLibrarySearchPath,
+    library_search_paths: Vec<mithril_elf::LibrarySearchPath>,
 }
 
 fn run_mithril(filename: &str) -> Result<bool, Error> {
@@ -37,7 +37,7 @@ fn run_mithril(filename: &str) -> Result<bool, Error> {
     let (has_stack_protector, has_fortify) = mithril_elf::has_protection(elf);
     let has_relro = mithril_elf::has_relro(elf);
     let has_bindnow = mithril_elf::has_bindnow(elf);
-    let has_library_search_path = mithril_elf::has_library_search_path(elf);
+    let library_search_paths = mithril_elf::has_library_search_path(elf);
 
     println!("{:?}", Results {
         is_pie,
@@ -45,7 +45,7 @@ fn run_mithril(filename: &str) -> Result<bool, Error> {
         has_fortify,
         has_relro,
         has_bindnow,
-        has_library_search_path,
+        library_search_paths,
     });
 
     Ok(true)
