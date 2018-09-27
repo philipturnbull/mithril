@@ -13,6 +13,7 @@ use std::process::exit;
 #[derive(Debug)]
 struct Results {
     is_pie: mithril_elf::IsPIE,
+    has_nx_stack: mithril_elf::HasNXStack,
     has_stack_protector: mithril_elf::HasStackProtector,
     has_fortify: mithril_elf::HasFortify,
     has_relro: mithril_elf::HasRelRO,
@@ -34,6 +35,7 @@ fn run_mithril(filename: &str) -> Result<bool, Error> {
     let elf = &elf;
 
     let is_pie = mithril_elf::is_pie(elf);
+    let has_nx_stack = mithril_elf::has_nx_stack(elf);
     let (has_stack_protector, has_fortify) = mithril_elf::has_protection(elf);
     let has_relro = mithril_elf::has_relro(elf);
     let has_bindnow = mithril_elf::has_bindnow(elf);
@@ -41,6 +43,7 @@ fn run_mithril(filename: &str) -> Result<bool, Error> {
 
     println!("{:?}", Results {
         is_pie,
+        has_nx_stack,
         has_stack_protector,
         has_fortify,
         has_relro,

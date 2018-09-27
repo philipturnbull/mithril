@@ -5,7 +5,8 @@ extern crate lazy_static;
 use goblin::elf::dyn::{DT_BIND_NOW, DT_RPATH, DT_RUNPATH};
 use goblin::elf::header::ET_DYN;
 use goblin::elf::Elf;
-use goblin::elf32::program_header::{PT_GNU_RELRO, PT_PHDR};
+use goblin::elf::program_header::ProgramHeader;
+use goblin::elf32::program_header::{PT_GNU_RELRO, PT_GNU_STACK, PT_PHDR};
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
@@ -112,6 +113,12 @@ lazy_static! {
 }
 
 #[derive(PartialEq, Debug)]
+pub enum HasNXStack {
+    Yes,
+    No,
+}
+
+#[derive(PartialEq, Debug)]
 pub enum IsPIE {
     Yes,
     No,
@@ -156,6 +163,10 @@ fn has_program_header(elf: &Elf, header: u32) -> bool {
     elf.program_headers.iter().any(|hdr| hdr.p_type == header)
 }
 
+fn get_program_header<'a>(elf: &'a Elf, header: u32) -> Option<&'a ProgramHeader> {
+    elf.program_headers.iter().filter(|hdr| hdr.p_type == header).nth(0)
+}
+
 fn has_dynamic_entry(elf: &Elf, tag: u64) -> bool {
     if let Some(ref dynamic) = elf.dynamic {
         return dynamic.dyns.iter().any(|dyn| dyn.d_tag == tag)
@@ -174,6 +185,16 @@ pub fn is_pie(elf: &Elf) -> IsPIE {
     }
 
     IsPIE::No
+}
+
+pub fn has_nx_stack(elf: &Elf) -> HasNXStack {
+    if let Some(hdr) = get_program_header(elf, PT_GNU_STACK) {
+        if hdr.p_flags & 1 == 1 {
+            return HasNXStack::No
+        }
+    }
+
+    HasNXStack::Yes
 }
 
 pub fn has_relro(elf: &Elf) -> HasRelRO {
