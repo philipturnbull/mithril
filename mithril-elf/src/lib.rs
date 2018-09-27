@@ -1,6 +1,8 @@
 extern crate goblin;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate serde_derive;
 
 use goblin::elf::dyn::{DT_BIND_NOW, DT_RPATH, DT_RUNPATH};
 use goblin::elf::header::ET_DYN;
@@ -112,26 +114,26 @@ lazy_static! {
         HashSet::from_iter(LIBC_FUNCTIONS.1.iter());
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Serialize)]
 pub enum HasNXStack {
     Yes,
     No,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Serialize)]
 pub enum IsPIE {
     Yes,
     No,
     SharedLibrary,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Serialize)]
 pub enum HasStackProtector {
     Yes,
     No,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Serialize)]
 pub enum HasFortify {
     All,
     Some,
@@ -139,19 +141,19 @@ pub enum HasFortify {
     OnlyUnprotected,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Serialize)]
 pub enum HasRelRO {
     Yes,
     No,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Serialize)]
 pub enum HasBindNow {
     Yes,
     No,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Serialize)]
 pub enum LibrarySearchPath {
     RPATHUnknown,
     RPATH(String),

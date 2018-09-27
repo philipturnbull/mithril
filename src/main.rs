@@ -3,6 +3,10 @@ extern crate ansi_term;
 extern crate clap;
 extern crate goblin;
 extern crate mithril_elf;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde;
+extern crate serde_json;
 
 use goblin::Object;
 use std::fs::File;
@@ -10,7 +14,7 @@ use std::io::{Error, ErrorKind, Read};
 use std::path::Path;
 use std::process::exit;
 
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 struct Results {
     is_pie: mithril_elf::IsPIE,
     has_nx_stack: mithril_elf::HasNXStack,
@@ -41,7 +45,7 @@ fn run_mithril(filename: &str) -> Result<bool, Error> {
     let has_bindnow = mithril_elf::has_bindnow(elf);
     let library_search_paths = mithril_elf::has_library_search_path(elf);
 
-    println!("{:?}", Results {
+     let results = Results {
         is_pie,
         has_nx_stack,
         has_stack_protector,
@@ -49,7 +53,8 @@ fn run_mithril(filename: &str) -> Result<bool, Error> {
         has_relro,
         has_bindnow,
         library_search_paths,
-    });
+    };
+    println!("{}", serde_json::to_string(&results).unwrap());
 
     Ok(true)
 }
