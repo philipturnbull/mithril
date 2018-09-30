@@ -43,7 +43,7 @@ fn run_mithril(filename: &str) -> Result<bool, Error> {
     let (has_stack_protector, has_fortify) = mithril_elf::has_protection(elf);
     let has_relro = mithril_elf::has_relro(elf);
     let has_bindnow = mithril_elf::has_bindnow(elf);
-    let library_search_paths = mithril_elf::has_library_search_path(elf);
+    let library_search_paths = mithril_elf::library_search_paths(elf);
 
      let results = Results {
         is_pie,

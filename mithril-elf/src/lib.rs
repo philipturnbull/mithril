@@ -252,7 +252,7 @@ pub fn has_protection(elf: &Elf) -> (HasStackProtector, HasFortify) {
     (has_stack_protector, has_fortify)
 }
 
-pub fn has_library_search_path(elf: &Elf) -> Vec<LibrarySearchPath> {
+pub fn library_search_paths(elf: &Elf) -> Vec<LibrarySearchPath> {
     let mut paths = Vec::new();
 
     if let Some(ref dynamic) = elf.dynamic {
