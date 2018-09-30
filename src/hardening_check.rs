@@ -131,9 +131,8 @@ fn print_check<C: Check>(config: &CheckConfig, check: &C) -> bool {
     !should_ignore && result.status == CheckStatus::Bad
 }
 
-fn run_hardening_check(filename: &str, config: &CheckConfig) -> Result<bool, Error> {
-    let path = Path::new(filename);
-    let mut fd = File::open(path)?;
+fn run_hardening_check(filename: &Path, config: &CheckConfig) -> Result<bool, Error> {
+    let mut fd = File::open(filename)?;
     let mut buffer = Vec::new();
     fd.read_to_end(&mut buffer)?;
 
@@ -149,7 +148,7 @@ fn run_hardening_check(filename: &str, config: &CheckConfig) -> Result<bool, Err
     let has_relro = mithril_elf::has_relro(elf);
     let has_bindnow = mithril_elf::has_bindnow(elf);
 
-    println!("{}:", filename);
+    println!("{}:", filename.to_str().unwrap_or("<unknown>"));
     let mut failed = false;
     failed |= print_check(config, &is_pie);
     failed |= print_check(config, &has_stack_protector);
@@ -173,7 +172,7 @@ fn main() {
         (@arg FILE: +required)
     ).get_matches();
 
-    let filename = matches.value_of("FILE").unwrap();
+    let filename = Path::new(matches.value_of("FILE").unwrap());
     let config = &CheckConfig {
         color: matches.is_present("color"),
         ignore_pie: matches.is_present("ignore_pie"),
@@ -187,7 +186,7 @@ fn main() {
         Ok(true) => 0,
         Ok(false) => 1,
         Err(e) => {
-            eprintln!("{}: {}", filename, e.to_string());
+            eprintln!("{}: {}", filename.to_str().unwrap_or("<unknown>"), e.to_string());
             1
         }
     };

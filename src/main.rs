@@ -25,9 +25,8 @@ struct Results {
     library_search_paths: Vec<mithril_elf::LibrarySearchPath>,
 }
 
-fn run_mithril(filename: &str) -> Result<bool, Error> {
-    let path = Path::new(filename);
-    let mut fd = File::open(path)?;
+fn run_mithril(filename: &Path) -> Result<bool, Error> {
+    let mut fd = File::open(filename)?;
     let mut buffer = Vec::new();
     fd.read_to_end(&mut buffer)?;
 
@@ -66,12 +65,12 @@ fn main() {
         (@arg FILE: +required)
     ).get_matches();
 
-    let filename = matches.value_of("FILE").unwrap();
+    let filename = Path::new(matches.value_of("FILE").unwrap());
     let code = match run_mithril(filename) {
         Ok(true) => 0,
         Ok(false) => 1,
         Err(e) => {
-            eprintln!("{}: {}", filename, e.to_string());
+            eprintln!("{}: {}", filename.to_str().unwrap_or("<unknown>"), e.to_string());
             1
         }
     };
