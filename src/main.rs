@@ -11,8 +11,9 @@ extern crate serde_json;
 
 use goblin::Object;
 use std::io::{Error, ErrorKind};
-use std::path::Path;
-use std::process::exit;
+
+struct Config {
+}
 
 #[derive(Serialize, Debug)]
 struct Results {
@@ -25,10 +26,7 @@ struct Results {
     library_search_paths: Vec<mithril_elf::LibrarySearchPath>,
 }
 
-fn run_mithril(filename: &Path) -> Result<bool, Error> {
-    let file = mithril::slurp_file(filename)?;
-    let object = mithril::slurp_object(&file)?;
-
+fn run(_config: &Config, _filename: &str, object: &Object) -> Result<bool, Error> {
     let elf = match object {
         Object::Elf(elf) => elf,
         _ => return Err(Error::new(ErrorKind::Other, "not an ELF file")),
@@ -63,14 +61,7 @@ fn main() {
         (@arg FILE: +required)
     ).get_matches();
 
-    let filename = Path::new(matches.value_of("FILE").unwrap());
-    let code = match run_mithril(filename) {
-        Ok(true) => 0,
-        Ok(false) => 1,
-        Err(e) => {
-            eprintln!("{}: {}", filename.to_str().unwrap_or("<unknown>"), e.to_string());
-            1
-        }
-    };
-    exit(code)
+    let filename = matches.value_of("FILE").unwrap();
+    let config = Config{};
+    mithril::run_and_exit(run, &config, filename);
 }

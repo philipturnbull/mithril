@@ -8,8 +8,6 @@ extern crate mithril_elf;
 use ansi_term::Color::{Green, Red, Yellow};
 use goblin::Object;
 use std::io::{Error, ErrorKind};
-use std::path::Path;
-use std::process::exit;
 
 #[derive(PartialEq)]
 enum CheckStatus {
@@ -40,7 +38,7 @@ fn unknown(text: &'static str) -> CheckResult {
     CheckResult { status: CheckStatus::Unknown, text, comment: "" }
 }
 
-struct CheckConfig {
+struct Config {
     color: bool,
     ignore_pie: bool,
     ignore_stack_protector: bool,
@@ -50,14 +48,14 @@ struct CheckConfig {
 }
 
 trait Check {
-    fn meta(self: &Self, config: &CheckConfig) -> (&'static str, bool);
+    fn meta(self: &Self, config: &Config) -> (&'static str, bool);
     fn result(self: &Self) -> CheckResult;
 }
 
 macro_rules! checked {
     ($type:ident $flag:ident $title:expr, $($pattern:ident => $result:expr),+,) => {
         impl Check for mithril_elf::$type {
-            fn meta(self: &Self, config: &CheckConfig) -> (&'static str, bool) {
+            fn meta(self: &Self, config: &Config) -> (&'static str, bool) {
                 ($title, config.$flag)
             }
 
@@ -106,7 +104,7 @@ checked! {
 }
 
 
-fn print_check<C: Check>(config: &CheckConfig, check: &C) -> bool {
+fn print_check<C: Check>(config: &Config, check: &C) -> bool {
     let (title, should_ignore) = check.meta(config);
     let result = check.result();
 
@@ -131,10 +129,7 @@ fn print_check<C: Check>(config: &CheckConfig, check: &C) -> bool {
     !should_ignore && result.status == CheckStatus::Bad
 }
 
-fn run_hardening_check(filename: &Path, config: &CheckConfig) -> Result<bool, Error> {
-    let file = mithril::slurp_file(filename)?;
-    let object = mithril::slurp_object(&file)?;
-
+fn run(config: &Config, filename: &str, object: &Object) -> Result<bool, Error> {
     let elf = match object {
         Object::Elf(elf) => elf,
         _ => return Err(Error::new(ErrorKind::Other, "not an ELF file")),
@@ -146,7 +141,7 @@ fn run_hardening_check(filename: &Path, config: &CheckConfig) -> Result<bool, Er
     let has_relro = mithril_elf::has_relro(elf);
     let has_bindnow = mithril_elf::has_bindnow(elf);
 
-    println!("{}:", filename.to_str().unwrap_or("<unknown>"));
+    println!("{}:", filename);
     let mut failed = false;
     failed |= print_check(config, &is_pie);
     failed |= print_check(config, &has_stack_protector);
@@ -170,8 +165,8 @@ fn main() {
         (@arg FILE: +required)
     ).get_matches();
 
-    let filename = Path::new(matches.value_of("FILE").unwrap());
-    let config = &CheckConfig {
+    let filename = matches.value_of("FILE").unwrap();
+    let config = &Config {
         color: matches.is_present("color"),
         ignore_pie: matches.is_present("ignore_pie"),
         ignore_stack_protector: matches.is_present("ignore_stack_protector"),
@@ -180,13 +175,5 @@ fn main() {
         ignore_bindnow: matches.is_present("ignore_bindnow"),
     };
 
-    let code = match run_hardening_check(filename, config) {
-        Ok(true) => 0,
-        Ok(false) => 1,
-        Err(e) => {
-            eprintln!("{}: {}", filename.to_str().unwrap_or("<unknown>"), e.to_string());
-            1
-        }
-    };
-    exit(code)
+    mithril::run_and_exit(run, &config, filename);
 }
