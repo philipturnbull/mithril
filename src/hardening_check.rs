@@ -132,12 +132,12 @@ fn print_check<C: Check>(config: &CheckConfig, check: &C) -> bool {
 }
 
 fn run_hardening_check(filename: &Path, config: &CheckConfig) -> Result<bool, Error> {
-    let buffer = mithril::read_file(filename)?;
+    let file = mithril::slurp_file(filename)?;
+    let object = mithril::slurp_object(&file)?;
 
-    let elf = match Object::parse(&buffer) {
-        Ok(Object::Elf(elf)) => elf,
-        Ok(_) => return Err(Error::new(ErrorKind::Other, "not an ELF file")),
-        Err(err) => return Err(Error::new(ErrorKind::Other, err.to_string())),
+    let elf = match object {
+        Object::Elf(elf) => elf,
+        _ => return Err(Error::new(ErrorKind::Other, "not an ELF file")),
     };
     let elf = &elf;
 

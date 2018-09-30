@@ -26,12 +26,12 @@ struct Results {
 }
 
 fn run_mithril(filename: &Path) -> Result<bool, Error> {
-    let buffer = mithril::read_file(filename)?;
+    let file = mithril::slurp_file(filename)?;
+    let object = mithril::slurp_object(&file)?;
 
-    let elf = match Object::parse(&buffer) {
-        Ok(Object::Elf(elf)) => elf,
-        Ok(_) => return Err(Error::new(ErrorKind::Other, "not an ELF file")),
-        Err(err) => return Err(Error::new(ErrorKind::Other, err.to_string())),
+    let elf = match object {
+        Object::Elf(elf) => elf,
+        _ => return Err(Error::new(ErrorKind::Other, "not an ELF file")),
     };
     let elf = &elf;
 
