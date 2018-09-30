@@ -2,6 +2,7 @@ extern crate ansi_term;
 #[macro_use]
 extern crate clap;
 extern crate goblin;
+extern crate mithril;
 extern crate mithril_elf;
 #[macro_use]
 extern crate serde_derive;
@@ -9,8 +10,7 @@ extern crate serde;
 extern crate serde_json;
 
 use goblin::Object;
-use std::fs::File;
-use std::io::{Error, ErrorKind, Read};
+use std::io::{Error, ErrorKind};
 use std::path::Path;
 use std::process::exit;
 
@@ -26,9 +26,7 @@ struct Results {
 }
 
 fn run_mithril(filename: &Path) -> Result<bool, Error> {
-    let mut fd = File::open(filename)?;
-    let mut buffer = Vec::new();
-    fd.read_to_end(&mut buffer)?;
+    let buffer = mithril::read_file(filename)?;
 
     let elf = match Object::parse(&buffer) {
         Ok(Object::Elf(elf)) => elf,

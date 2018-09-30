@@ -2,12 +2,12 @@ extern crate ansi_term;
 #[macro_use]
 extern crate clap;
 extern crate goblin;
+extern crate mithril;
 extern crate mithril_elf;
 
 use ansi_term::Color::{Green, Red, Yellow};
 use goblin::Object;
-use std::fs::File;
-use std::io::{Error, ErrorKind, Read};
+use std::io::{Error, ErrorKind};
 use std::path::Path;
 use std::process::exit;
 
@@ -132,9 +132,7 @@ fn print_check<C: Check>(config: &CheckConfig, check: &C) -> bool {
 }
 
 fn run_hardening_check(filename: &Path, config: &CheckConfig) -> Result<bool, Error> {
-    let mut fd = File::open(filename)?;
-    let mut buffer = Vec::new();
-    fd.read_to_end(&mut buffer)?;
+    let buffer = mithril::read_file(filename)?;
 
     let elf = match Object::parse(&buffer) {
         Ok(Object::Elf(elf)) => elf,
