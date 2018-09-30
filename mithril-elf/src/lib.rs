@@ -225,10 +225,8 @@ pub fn has_protection(elf: &Elf) -> (HasStackProtector, HasFortify) {
     let mut has_unprotected = false;
 
     for name in dyn_sym_names(elf) {
-        if has_stack_protector == HasStackProtector::No {
-            if name == "__stack_chk_fail" {
-                has_stack_protector = HasStackProtector::Yes;
-            }
+        if has_stack_protector == HasStackProtector::No && name == "__stack_chk_fail" {
+            has_stack_protector = HasStackProtector::Yes;
         }
 
         if !has_protected && PROTECTED_FUNCTIONS.contains(&name) {
