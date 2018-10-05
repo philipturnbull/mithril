@@ -2,15 +2,16 @@ extern crate ansi_term;
 #[macro_use]
 extern crate clap;
 extern crate goblin;
+extern crate kobold;
 extern crate mithril;
-extern crate mithril_ar;
-extern crate mithril_elf;
 
 use ansi_term::Color::{Green, Red, Yellow};
 use goblin::archive::Archive;
 use goblin::elf::Elf;
 use goblin::Object;
-use mithril_elf::{IsPIE, HasStackProtector, HasFortify, HasRelRO, HasBindNow};
+use kobold::ar;
+use kobold::elf;
+use kobold::elf::{IsPIE, HasStackProtector, HasFortify, HasRelRO, HasBindNow};
 use std::io::{Error, ErrorKind};
 
 #[derive(PartialEq)]
@@ -58,7 +59,7 @@ trait Check {
 
 macro_rules! checked {
     ($type:ident $flag:ident $title:expr, $($pattern:ident => $result:expr),+,) => {
-        impl Check for mithril_elf::$type {
+        impl Check for elf::$type {
             fn meta(self: &Self, config: &Config) -> (&'static str, bool) {
                 ($title, config.$flag)
             }
@@ -66,7 +67,7 @@ macro_rules! checked {
             fn result(self: &Self) -> CheckResult {
                 match self {
                     $(
-                        mithril_elf::$type::$pattern => $result,
+                        elf::$type::$pattern => $result,
                     )*
                 }
             }
@@ -137,16 +138,16 @@ fn print_check<C: Check>(config: &Config, check: &C) -> bool {
 }
 
 fn run_elf(elf: &Elf) -> (IsPIE, HasStackProtector, HasFortify, HasRelRO, HasBindNow) {
-    let is_pie = mithril_elf::is_pie(elf);
-    let (has_stack_protector, has_fortify) = mithril_elf::has_protection(elf);
-    let has_relro = mithril_elf::has_relro(elf);
-    let has_bindnow = mithril_elf::has_bindnow(elf);
+    let is_pie = elf::is_pie(elf);
+    let (has_stack_protector, has_fortify) = elf::has_protection(elf);
+    let has_relro = elf::has_relro(elf);
+    let has_bindnow = elf::has_bindnow(elf);
 
     (is_pie, has_stack_protector, has_fortify, has_relro, has_bindnow)
 }
 
 fn run_archive(bytes: &[u8], archive: &Archive) -> Result<(IsPIE, HasStackProtector, HasFortify, HasRelRO, HasBindNow), Error> {
-    let (has_stack_protector, has_fortify) = mithril_ar::has_protection(bytes, archive)?;
+    let (has_stack_protector, has_fortify) = ar::has_protection(bytes, archive)?;
     Ok((IsPIE::Archive, has_stack_protector, has_fortify, HasRelRO::NotELF, HasBindNow::NotELF))
 }
 

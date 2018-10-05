@@ -1,5 +1,5 @@
 [package]
-name = "mithril-elf"
+name = "kobold"
 version = "0.1.0"
 authors = ["Phil Turnbull <philip.turnbull@gmail.com>"]
 homepage = "https://github.com/philipturnbull/mithril"

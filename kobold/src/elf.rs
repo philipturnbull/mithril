@@ -1,9 +1,3 @@
-extern crate goblin;
-#[macro_use]
-extern crate lazy_static;
-#[macro_use]
-extern crate serde_derive;
-
 use goblin::elf::dyn::{DT_BIND_NOW, DT_RPATH, DT_RUNPATH};
 use goblin::elf::header::ET_DYN;
 use goblin::elf::Elf;
@@ -114,11 +108,11 @@ lazy_static! {
         HashSet::from_iter(LIBC_FUNCTIONS.1.iter());
 }
 
-pub fn protected_function(name: &str) -> bool {
+pub fn is_protected_function(name: &str) -> bool {
     PROTECTED_FUNCTIONS.contains(&name)
 }
 
-pub fn unprotected_function(name: &str) -> bool {
+pub fn is_unprotected_function(name: &str) -> bool {
     UNPROTECTED_FUNCTIONS.contains(&name)
 }
 
@@ -142,12 +136,46 @@ pub enum HasStackProtector {
     No,
 }
 
+impl HasStackProtector {
+    pub fn union(self: &Self, rhs: &Self) -> Self {
+        match (self, rhs) {
+            (HasStackProtector::Yes, HasStackProtector::Yes) => HasStackProtector::Yes,
+            (HasStackProtector::Yes, HasStackProtector::No) => HasStackProtector::Yes,
+            (HasStackProtector::No, HasStackProtector::Yes) => HasStackProtector::Yes,
+            (HasStackProtector::No, HasStackProtector::No) => HasStackProtector::No,
+        }
+    }
+}
+
 #[derive(PartialEq, Debug, Serialize)]
 pub enum HasFortify {
     All,
     Some,
     Unknown,
     OnlyUnprotected,
+}
+
+impl HasFortify {
+    pub fn union(self: &Self, rhs: &Self) -> Self {
+        match (self, rhs) {
+            (HasFortify::All, HasFortify::All) => HasFortify::All,
+            (HasFortify::All, HasFortify::Some) => HasFortify::Some,
+            (HasFortify::All, HasFortify::Unknown) => HasFortify::All,
+            (HasFortify::All, HasFortify::OnlyUnprotected) => HasFortify::Some,
+            (HasFortify::Some, HasFortify::All) => HasFortify::Some,
+            (HasFortify::Some, HasFortify::Some) => HasFortify::Some,
+            (HasFortify::Some, HasFortify::Unknown) => HasFortify::Some,
+            (HasFortify::Some, HasFortify::OnlyUnprotected) => HasFortify::Some,
+            (HasFortify::Unknown, HasFortify::All) => HasFortify::All,
+            (HasFortify::Unknown, HasFortify::Some) => HasFortify::Some,
+            (HasFortify::Unknown, HasFortify::Unknown) => HasFortify::Unknown,
+            (HasFortify::Unknown, HasFortify::OnlyUnprotected) => HasFortify::OnlyUnprotected,
+            (HasFortify::OnlyUnprotected, HasFortify::All) => HasFortify::Some,
+            (HasFortify::OnlyUnprotected, HasFortify::Some) => HasFortify::Some,
+            (HasFortify::OnlyUnprotected, HasFortify::Unknown) => HasFortify::OnlyUnprotected,
+            (HasFortify::OnlyUnprotected, HasFortify::OnlyUnprotected) => HasFortify::OnlyUnprotected,
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Serialize)]
@@ -226,28 +254,26 @@ pub fn has_bindnow(elf: &Elf) -> HasBindNow {
     }
 }
 
-fn dyn_sym_names<'a>(elf: &'a Elf) -> impl std::iter::Iterator<Item=&'a str> {
-    elf.dynsyms.iter().filter_map(move |sym| elf.dynstrtab.get(sym.st_name).and_then(|x| x.ok()))
-}
-
 pub fn has_protection(elf: &Elf) -> (HasStackProtector, HasFortify) {
     let mut has_stack_protector = HasStackProtector::No;
     let mut has_protected = false;
     let mut has_unprotected = false;
 
-    for name in dyn_sym_names(elf) {
-        if has_stack_protector == HasStackProtector::No && name == "__stack_chk_fail" {
-            has_stack_protector = HasStackProtector::Yes;
-        }
+    for sym in &elf.dynsyms {
+        if let Some(Ok(name)) = elf.dynstrtab.get(sym.st_name) {
+            if has_stack_protector == HasStackProtector::No && name == "__stack_chk_fail" {
+                has_stack_protector = HasStackProtector::Yes;
+            }
 
-        if !has_protected && protected_function(name) {
-            has_protected = true;
-        } else if !has_unprotected && unprotected_function(name) {
-            has_unprotected = true;
-        }
+            if !has_protected && is_protected_function(name) {
+                has_protected = true;
+            } else if !has_unprotected && is_unprotected_function(name) {
+                has_unprotected = true;
+            }
 
-        if has_stack_protector == HasStackProtector::Yes && has_protected && has_unprotected {
-            break
+            if has_stack_protector == HasStackProtector::Yes && has_protected && has_unprotected {
+                break
+            }
         }
     }
 

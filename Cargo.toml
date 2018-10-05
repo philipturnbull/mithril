@@ -20,12 +20,11 @@ name = "mithril"
 
 [workspace]
 members = [
-  "mithril-elf",
+  "kobold"
 ]
 
 [dependencies]
-mithril-ar = { version = "0.1.0", path = "mithril-ar" }
-mithril-elf = { version = "0.1.0", path = "mithril-elf" }
+kobold = { version = "0.1.0", path = "kobold" }
 ansi_term = "0.11.0"
 clap = "2.32.0"
 goblin = "0.0.17"

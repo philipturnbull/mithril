@@ -1,35 +1,30 @@
-extern crate goblin;
-extern crate mithril_elf;
-
 use goblin::archive::Archive;
 use goblin::elf::Elf;
-use mithril_elf::{HasStackProtector, HasFortify};
+use super::elf::{HasStackProtector, HasFortify, is_protected_function, is_unprotected_function};
 use std::io::{Error, ErrorKind};
 
-fn sym_names<'a>(elf: &'a Elf) -> impl std::iter::Iterator<Item=&'a str> {
-    elf.syms.iter().filter_map(move |sym| elf.strtab.get(sym.st_name).and_then(|x| x.ok()))
-}
-
-// This is an unlinked object, so we can't use mithril_elf::has_protection
+// This is an unlinked object, so we can't use kobold::elf::has_protection
 fn object_has_protection(elf: &Elf) -> (HasStackProtector, HasFortify) {
     let mut has_stack_protector = HasStackProtector::No;
     let mut has_protected = false;
     let mut has_unprotected = false;
 
-    for name in sym_names(elf) {
-        // TODO: should this check Ndx == UND for each symbol?
-        if has_stack_protector == HasStackProtector::No && name == "__stack_chk_fail" {
-            has_stack_protector = HasStackProtector::Yes;
-        }
+    for sym in &elf.syms {
+        if let Some(Ok(name)) = elf.strtab.get(sym.st_name) {
+            // TODO: should this check Ndx == UND for each symbol?
+            if has_stack_protector == HasStackProtector::No && name == "__stack_chk_fail" {
+                has_stack_protector = HasStackProtector::Yes;
+            }
 
-        if !has_protected && mithril_elf::protected_function(name) {
-            has_protected = true;
-        } else if !has_unprotected && mithril_elf::unprotected_function(name) {
-            has_unprotected = true;
-        }
+            if !has_protected && is_protected_function(name) {
+                has_protected = true;
+            } else if !has_unprotected && is_unprotected_function(name) {
+                has_unprotected = true;
+            }
 
-        if has_stack_protector == HasStackProtector::Yes && has_protected && has_unprotected {
-            break
+            if has_stack_protector == HasStackProtector::Yes && has_protected && has_unprotected {
+                break
+            }
         }
     }
 

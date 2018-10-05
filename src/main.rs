@@ -2,14 +2,15 @@ extern crate ansi_term;
 #[macro_use]
 extern crate clap;
 extern crate goblin;
+extern crate kobold;
 extern crate mithril;
-extern crate mithril_elf;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
 
 use goblin::Object;
+use kobold::elf;
 use std::io::{Error, ErrorKind};
 
 struct Config {
@@ -17,13 +18,13 @@ struct Config {
 
 #[derive(Serialize, Debug)]
 struct Results {
-    is_pie: mithril_elf::IsPIE,
-    has_nx_stack: mithril_elf::HasNXStack,
-    has_stack_protector: mithril_elf::HasStackProtector,
-    has_fortify: mithril_elf::HasFortify,
-    has_relro: mithril_elf::HasRelRO,
-    has_bindnow: mithril_elf::HasBindNow,
-    library_search_paths: Vec<mithril_elf::LibrarySearchPath>,
+    is_pie: elf::IsPIE,
+    has_nx_stack: elf::HasNXStack,
+    has_stack_protector: elf::HasStackProtector,
+    has_fortify: elf::HasFortify,
+    has_relro: elf::HasRelRO,
+    has_bindnow: elf::HasBindNow,
+    library_search_paths: Vec<elf::LibrarySearchPath>,
 }
 
 fn run(_config: &Config, _filename: &str, _bytes: &[u8], object: &Object) -> Result<bool, Error> {
@@ -33,12 +34,12 @@ fn run(_config: &Config, _filename: &str, _bytes: &[u8], object: &Object) -> Res
     };
     let elf = &elf;
 
-    let is_pie = mithril_elf::is_pie(elf);
-    let has_nx_stack = mithril_elf::has_nx_stack(elf);
-    let (has_stack_protector, has_fortify) = mithril_elf::has_protection(elf);
-    let has_relro = mithril_elf::has_relro(elf);
-    let has_bindnow = mithril_elf::has_bindnow(elf);
-    let library_search_paths = mithril_elf::library_search_paths(elf);
+    let is_pie = elf::is_pie(elf);
+    let has_nx_stack = elf::has_nx_stack(elf);
+    let (has_stack_protector, has_fortify) = elf::has_protection(elf);
+    let has_relro = elf::has_relro(elf);
+    let has_bindnow = elf::has_bindnow(elf);
+    let library_search_paths = elf::library_search_paths(elf);
 
      let results = Results {
         is_pie,

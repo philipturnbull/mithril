@@ -1,8 +1,0 @@
-[package]
-name = "mithril-ar"
-version = "0.1.0"
-authors = ["Phil Turnbull <philip.turnbull@gmail.com>"]
-
-[dependencies]
-goblin = "0.0.17"
-mithril-elf = { path = "../mithril-elf" }
