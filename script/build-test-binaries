@@ -17,8 +17,6 @@ for CC in $compilers; do
 
     ${CC} $static_flag -z execstack nop.c -o "$OUT/elf-${cc}-execstack"
 
-    ${CC} $static_flag $NO_FORTIFY nop.c -o "$OUT/elf-${cc}-no-fortify${static_flag}"
-
     ${CC} $static_flag $NO_FORTIFY strcpy.c -c -o strcpy.o
     ${CC} $static_flag $NO_FORTIFY copy.c strcpy.o -o "$OUT/elf-${cc}-missing-fortify${static_flag}"
 
@@ -33,10 +31,12 @@ for CC in $compilers; do
 
   done
 
+  for x in $OUT/elf*-static; do
+    strip -o "${x}-stripped" "$x"
+  done
+
   ${CC} -Wl,-rpath,"/foo" nop.c -o "$OUT/elf-${cc}-rpath"
   ${CC} -Wl,-rpath,"/bar",--enable-new-dtags nop.c -o "$OUT/elf-${cc}-runpath"
-
-  ${CC} -fPIC --shared $NO_FORTIFY nop.c -o "$OUT/elf-${cc}-no-fortify-shared.so"
 
   ${CC} -fPIC $NO_FORTIFY strcpy.c -c -o strcpy.o
   ${CC} -fPIC -shared $NO_FORTIFY copy.c strcpy.o -o "$OUT/elf-${cc}-missing-fortify.so"
@@ -49,6 +49,25 @@ for CC in $compilers; do
 
   ${CC} -fPIC -shared -fno-stack-protector copy.c -o "$OUT/elf-${cc}-no-stack-protector.so"
   ${CC} -fPIC -shared -fstack-protector copy.c -o "$OUT/elf-${cc}-stack-protector.so"
+
+
+  ${CC} $NO_FORTIFY -c strcpy.c -o strcpy.o
+  ${CC} $NO_FORTIFY -c copy.c -o copy.o
+  ar cr "$OUT/elf-${cc}-missing-fortify.a" copy.o strcpy.o
+
+  ${CC} $NO_FORTIFY -c strcpy.c -o strcpy.o
+  ${CC} $FORTIFY -c copy.c -o copy.o
+  ar cr "$OUT/elf-${cc}-partial-fortify.a" copy.o strcpy.o
+
+  ${CC} $FORTIFY -c strcpy.c -o strcpy.o
+  ${CC} $FORTIFY -c copy.c -o copy.o
+  ar cr "$OUT/elf-${cc}-full-fortify.a" copy.o strcpy.o
+
+  ${CC} -fno-stack-protector -c copy.c -o copy.o
+  ar cr "$OUT/elf-${cc}-no-stack-protector.a" copy.o
+
+  ${CC} -fstack-protector -c copy.c -o copy.o
+  ar cr "$OUT/elf-${cc}-stack-protector.a" copy.o
 done
 popd 1>/dev/null
 
