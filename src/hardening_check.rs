@@ -3,10 +3,14 @@ extern crate ansi_term;
 extern crate clap;
 extern crate goblin;
 extern crate mithril;
+extern crate mithril_ar;
 extern crate mithril_elf;
 
 use ansi_term::Color::{Green, Red, Yellow};
+use goblin::archive::Archive;
+use goblin::elf::Elf;
 use goblin::Object;
+use mithril_elf::{IsPIE, HasStackProtector, HasFortify, HasRelRO, HasBindNow};
 use std::io::{Error, ErrorKind};
 
 #[derive(PartialEq)]
@@ -75,6 +79,7 @@ checked! {
     Yes => good("yes"),
     No => bad("no, normal executable!"),
     SharedLibrary => good("no, regular shared library (ignored)"),
+    Archive => good("no, object archive (ignored)"),
 }
 
 checked! {
@@ -95,12 +100,14 @@ checked! {
     HasRelRO ignore_relro "Read-only relocations",
     Yes => good("yes"),
     No => bad("no, not found!"),
+    NotELF => good_comment("no", ", non-ELF (ignored)"),
 }
 
 checked! {
     HasBindNow ignore_bindnow "Immediate binding",
     Yes => good("yes"),
     No => bad("no, not found!"),
+    NotELF => good_comment("no", ", non-ELF (ignored)"),
 }
 
 
@@ -129,17 +136,26 @@ fn print_check<C: Check>(config: &Config, check: &C) -> bool {
     !should_ignore && result.status == CheckStatus::Bad
 }
 
-fn run(config: &Config, filename: &str, object: &Object) -> Result<bool, Error> {
-    let elf = match object {
-        Object::Elf(elf) => elf,
-        _ => return Err(Error::new(ErrorKind::Other, "not an ELF file")),
-    };
-    let elf = &elf;
-
+fn run_elf(elf: &Elf) -> (IsPIE, HasStackProtector, HasFortify, HasRelRO, HasBindNow) {
     let is_pie = mithril_elf::is_pie(elf);
     let (has_stack_protector, has_fortify) = mithril_elf::has_protection(elf);
     let has_relro = mithril_elf::has_relro(elf);
     let has_bindnow = mithril_elf::has_bindnow(elf);
+
+    (is_pie, has_stack_protector, has_fortify, has_relro, has_bindnow)
+}
+
+fn run_archive(bytes: &[u8], archive: &Archive) -> Result<(IsPIE, HasStackProtector, HasFortify, HasRelRO, HasBindNow), Error> {
+    let (has_stack_protector, has_fortify) = mithril_ar::has_protection(bytes, archive)?;
+    Ok((IsPIE::Archive, has_stack_protector, has_fortify, HasRelRO::NotELF, HasBindNow::NotELF))
+}
+
+fn run(config: &Config, filename: &str, bytes: &[u8], object: &Object) -> Result<bool, Error> {
+    let (is_pie, has_stack_protector, has_fortify, has_relro, has_bindnow) = match object {
+        Object::Elf(elf) => run_elf(elf),
+        Object::Archive(archive) => run_archive(bytes, archive)?,
+        _ => return Err(Error::new(ErrorKind::Other, "not an ELF file")),
+    };
 
     println!("{}:", filename);
     let mut failed = false;

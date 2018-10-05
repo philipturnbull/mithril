@@ -114,6 +114,14 @@ lazy_static! {
         HashSet::from_iter(LIBC_FUNCTIONS.1.iter());
 }
 
+pub fn protected_function(name: &str) -> bool {
+    PROTECTED_FUNCTIONS.contains(&name)
+}
+
+pub fn unprotected_function(name: &str) -> bool {
+    UNPROTECTED_FUNCTIONS.contains(&name)
+}
+
 #[derive(PartialEq, Debug, Serialize)]
 pub enum HasNXStack {
     Yes,
@@ -125,6 +133,7 @@ pub enum IsPIE {
     Yes,
     No,
     SharedLibrary,
+    Archive,
 }
 
 #[derive(PartialEq, Debug, Serialize)]
@@ -145,12 +154,14 @@ pub enum HasFortify {
 pub enum HasRelRO {
     Yes,
     No,
+    NotELF,
 }
 
 #[derive(PartialEq, Debug, Serialize)]
 pub enum HasBindNow {
     Yes,
     No,
+    NotELF,
 }
 
 #[derive(PartialEq, Debug, Serialize)]
@@ -229,9 +240,9 @@ pub fn has_protection(elf: &Elf) -> (HasStackProtector, HasFortify) {
             has_stack_protector = HasStackProtector::Yes;
         }
 
-        if !has_protected && PROTECTED_FUNCTIONS.contains(&name) {
+        if !has_protected && protected_function(name) {
             has_protected = true;
-        } else if !has_unprotected && UNPROTECTED_FUNCTIONS.contains(&name) {
+        } else if !has_unprotected && unprotected_function(name) {
             has_unprotected = true;
         }
 

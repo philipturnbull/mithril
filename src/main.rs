@@ -26,7 +26,7 @@ struct Results {
     library_search_paths: Vec<mithril_elf::LibrarySearchPath>,
 }
 
-fn run(_config: &Config, _filename: &str, object: &Object) -> Result<bool, Error> {
+fn run(_config: &Config, _filename: &str, _bytes: &[u8], object: &Object) -> Result<bool, Error> {
     let elf = match object {
         Object::Elf(elf) => elf,
         _ => return Err(Error::new(ErrorKind::Other, "not an ELF file")),

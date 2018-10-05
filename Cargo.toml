@@ -24,6 +24,7 @@ members = [
 ]
 
 [dependencies]
+mithril-ar = { version = "0.1.0", path = "mithril-ar" }
 mithril-elf = { version = "0.1.0", path = "mithril-elf" }
 ansi_term = "0.11.0"
 clap = "2.32.0"

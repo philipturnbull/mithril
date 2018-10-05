@@ -84,10 +84,19 @@ dependencies = [
  "clap 2.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "goblin 0.0.17 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mithril-ar 0.1.0",
  "mithril-elf 0.1.0",
  "serde 1.0.79 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.79 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.31 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "mithril-ar"
+version = "0.1.0"
+dependencies = [
+ "goblin 0.0.17 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mithril-elf 0.1.0",
 ]
 
 [[package]]
